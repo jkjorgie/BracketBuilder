@@ -110,8 +110,8 @@ export default function HomePage() {
         <div className="grid md:grid-cols-3 gap-6">
           <StepCard
             number={1}
-            title="Get Your Link"
-            description="Visit our booth or attend a session to get your unique voting link for that day."
+            title="Vote Multiple Times"
+            description="Visit our booth daily for one vote, plus get an extra vote at each GT session you attend. More visits = more influence!"
             icon={
               <svg
                 className="w-8 h-8"
