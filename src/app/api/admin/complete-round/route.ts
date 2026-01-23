@@ -1,10 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/db';
-import { Prisma } from '@prisma/client';
 import { requireAuth } from '@/lib/auth';
 import { logAudit } from '@/lib/audit';
-
-type TransactionClient = Prisma.TransactionClient;
 
 // POST /api/admin/complete-round - Complete a round and advance winners
 export async function POST(request: NextRequest) {
@@ -94,7 +91,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Apply winners in a transaction
-    const result = await prisma.$transaction(async (tx: TransactionClient) => {
+    const result = await prisma.$transaction(async (tx: typeof prisma) => {
       // Set winners on matchups and eliminate losers
       for (const { matchupId, winnerId, loserId } of winners) {
         await tx.matchup.update({
