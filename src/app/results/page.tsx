@@ -1,18 +1,126 @@
 'use client';
 
-import { useState } from 'react';
-import { mockBracket } from '@/data/mockBracket';
-import { Bracket, Contestant } from '@/types/bracket';
+import { useState, useEffect } from 'react';
+import { Contestant } from '@/types/bracket';
+
+interface MatchupData {
+  id: string;
+  matchupIndex: number;
+  contestant1: Contestant | null;
+  contestant2: Contestant | null;
+  winner: { id: string; name: string } | null;
+  competitor1Votes: number;
+  competitor2Votes: number;
+}
+
+interface RoundData {
+  roundNumber: number;
+  name: string;
+  isActive: boolean;
+  isComplete: boolean;
+  matchups: MatchupData[];
+}
+
+interface ResultsData {
+  campaign: {
+    id: string;
+    slug: string;
+    name: string;
+    description: string | null;
+    currentRound: number;
+    isDemo: boolean;
+  };
+  siteConfig: {
+    siteName: string;
+    eventName: string;
+  } | null;
+  rounds: RoundData[];
+  statistics: {
+    totalVotes: number;
+    uniqueVoters: number;
+    totalCompetitors: number;
+    votesBySource: { source: string; count: number }[];
+  };
+  eliminatedCompetitorIds: string[];
+  champion: Contestant | null;
+}
 
 export default function ResultsPage() {
-  const [bracket] = useState<Bracket>(mockBracket);
+  const [data, setData] = useState<ResultsData | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function fetchResults() {
+      try {
+        setIsLoading(true);
+        const response = await fetch('/api/results');
+        if (!response.ok) {
+          if (response.status === 404) {
+            setError('No campaign found');
+          } else {
+            setError('Failed to load results');
+          }
+          return;
+        }
+        const result = await response.json();
+        setData(result);
+      } catch (err) {
+        console.error('Error fetching results:', err);
+        setError('Failed to load results');
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    fetchResults();
+  }, []);
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-16">
+        <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full" />
+      </div>
+    );
+  }
+
+  if (error || !data) {
+    return (
+      <div className="text-center py-16">
+        <div className="inline-flex items-center justify-center w-16 h-16 bg-surface rounded-full mb-4">
+          <svg
+            className="w-8 h-8 text-text/50"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            aria-hidden="true"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+            />
+          </svg>
+        </div>
+        <h2 className="text-2xl font-bold text-text mb-2">
+          {error || 'No Results Available'}
+        </h2>
+        <p className="text-text/70 max-w-md mx-auto">
+          There are no results to display at the moment.
+        </p>
+        <a href="/vote" className="btn btn-primary mt-6 inline-flex">
+          Go Vote
+        </a>
+      </div>
+    );
+  }
 
   return (
     <div>
       {/* Header */}
       <div className="mb-8">
         <h1 className="text-3xl md:text-4xl font-bold text-text mb-2">
-          {bracket.name} - Results
+          {data.campaign.name} - Results
         </h1>
         <p className="text-lg text-text/70">
           Track the progress of the competition and see which features are
@@ -21,7 +129,7 @@ export default function ResultsPage() {
       </div>
 
       {/* Champion display (when complete) */}
-      {bracket.champion && (
+      {data.champion && (
         <div className="bg-gradient-to-r from-primary to-secondary rounded-2xl p-8 mb-8 text-center">
           <div className="inline-flex items-center justify-center w-16 h-16 bg-white/20 rounded-full mb-4">
             <span className="text-4xl" aria-hidden="true">
@@ -30,10 +138,10 @@ export default function ResultsPage() {
           </div>
           <h2 className="text-2xl font-bold text-white mb-2">Champion</h2>
           <p className="text-3xl font-bold text-white">
-            {bracket.champion.name}
+            {data.champion.name}
           </p>
           <p className="text-white/80 mt-2 max-w-md mx-auto">
-            {bracket.champion.description}
+            {data.champion.description}
           </p>
         </div>
       )}
@@ -44,12 +152,12 @@ export default function ResultsPage() {
 
         {/* Desktop bracket view */}
         <div className="hidden md:block">
-          <BracketVisualization bracket={bracket} />
+          <BracketVisualization data={data} />
         </div>
 
         {/* Mobile list view */}
         <div className="md:hidden space-y-6">
-          {bracket.rounds.map((round) => (
+          {data.rounds.map((round) => (
             <div key={round.roundNumber}>
               <h3 className="text-lg font-semibold text-text mb-3 flex items-center gap-2">
                 {round.name}
@@ -74,6 +182,9 @@ export default function ResultsPage() {
                       contestant1={matchup.contestant1}
                       contestant2={matchup.contestant2}
                       winner={matchup.winner}
+                      competitor1Votes={matchup.competitor1Votes}
+                      competitor2Votes={matchup.competitor2Votes}
+                      showVotes={round.isComplete || round.isActive}
                     />
                   </div>
                 ))}
@@ -87,7 +198,7 @@ export default function ResultsPage() {
       <div className="mt-8 grid sm:grid-cols-3 gap-4">
         <StatCard
           label="Total Votes"
-          value="--"
+          value={data.statistics.totalVotes.toString()}
           icon={
             <svg
               className="w-6 h-6"
@@ -106,7 +217,7 @@ export default function ResultsPage() {
         />
         <StatCard
           label="Current Round"
-          value={bracket.rounds.find((r) => r.isActive)?.name || 'Complete'}
+          value={data.rounds.find((r) => r.isActive)?.name || 'Complete'}
           icon={
             <svg
               className="w-6 h-6"
@@ -124,8 +235,8 @@ export default function ResultsPage() {
           }
         />
         <StatCard
-          label="Contestants"
-          value={`${bracket.rounds[0].matchups.length * 2}`}
+          label="Unique Voters"
+          value={data.statistics.uniqueVoters.toString()}
           icon={
             <svg
               className="w-6 h-6"
@@ -143,18 +254,36 @@ export default function ResultsPage() {
           }
         />
       </div>
+
+      {/* Votes by source */}
+      {data.statistics.votesBySource.length > 0 && (
+        <div className="mt-8 bg-white border-2 border-border rounded-xl p-6">
+          <h2 className="text-xl font-bold text-text mb-4">Votes by Source</h2>
+          <div className="grid sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+            {data.statistics.votesBySource.map((item) => (
+              <div
+                key={item.source}
+                className="bg-surface rounded-lg p-3 border border-border"
+              >
+                <p className="text-sm text-text/60">{item.source}</p>
+                <p className="text-lg font-bold text-text">{item.count}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
-function BracketVisualization({ bracket }: { bracket: Bracket }) {
+function BracketVisualization({ data }: { data: ResultsData }) {
   return (
     <div
       className="flex items-center justify-center gap-8 min-w-max"
       role="img"
       aria-label="Tournament bracket visualization"
     >
-      {bracket.rounds.map((round, roundIndex) => (
+      {data.rounds.map((round, roundIndex) => (
         <div
           key={round.roundNumber}
           className="flex flex-col justify-around"
@@ -175,13 +304,17 @@ function BracketVisualization({ bracket }: { bracket: Bracket }) {
               <ContestantSlot
                 contestant={matchup.contestant1}
                 isWinner={matchup.winner?.id === matchup.contestant1?.id}
+                votes={matchup.competitor1Votes}
+                showVotes={round.isComplete || round.isActive}
               />
               <ContestantSlot
                 contestant={matchup.contestant2}
                 isWinner={matchup.winner?.id === matchup.contestant2?.id}
+                votes={matchup.competitor2Votes}
+                showVotes={round.isComplete || round.isActive}
               />
               {/* Connector line */}
-              {roundIndex < bracket.rounds.length - 1 && (
+              {roundIndex < data.rounds.length - 1 && (
                 <div
                   className="absolute right-0 top-1/2 w-8 h-px bg-border -translate-y-1/2 translate-x-full"
                   aria-hidden="true"
@@ -201,19 +334,19 @@ function BracketVisualization({ bracket }: { bracket: Bracket }) {
           className={`
             w-48 p-4 rounded-lg border-2 text-center
             ${
-              bracket.champion
+              data.champion
                 ? 'bg-gradient-to-r from-primary/20 to-secondary/20 border-primary'
                 : 'bg-surface border-dashed border-border'
             }
           `}
         >
-          {bracket.champion ? (
+          {data.champion ? (
             <>
               <span className="text-2xl mb-2 block" aria-hidden="true">
                 🏆
               </span>
               <span className="font-bold text-text">
-                {bracket.champion.name}
+                {data.champion.name}
               </span>
             </>
           ) : (
@@ -228,9 +361,13 @@ function BracketVisualization({ bracket }: { bracket: Bracket }) {
 function ContestantSlot({
   contestant,
   isWinner,
+  votes,
+  showVotes,
 }: {
   contestant: Contestant | null;
   isWinner: boolean;
+  votes: number;
+  showVotes: boolean;
 }) {
   return (
     <div
@@ -253,13 +390,18 @@ function ContestantSlot({
             </span>
           )}
           <span
-            className={`text-sm truncate ${isWinner ? 'font-bold text-success' : 'text-text'}`}
+            className={`text-sm truncate flex-1 ${isWinner ? 'font-bold text-success' : 'text-text'}`}
           >
             {contestant.name}
           </span>
+          {showVotes && (
+            <span className="text-xs text-text/60 font-medium">
+              {votes}
+            </span>
+          )}
           {isWinner && (
             <svg
-              className="w-4 h-4 text-success flex-shrink-0 ml-auto"
+              className="w-4 h-4 text-success flex-shrink-0"
               fill="currentColor"
               viewBox="0 0 20 20"
               aria-label="Winner"
@@ -283,25 +425,41 @@ function MobileMatchup({
   contestant1,
   contestant2,
   winner,
+  competitor1Votes,
+  competitor2Votes,
+  showVotes,
 }: {
   contestant1: Contestant | null;
   contestant2: Contestant | null;
-  winner: Contestant | null | undefined;
+  winner: { id: string; name: string } | null;
+  competitor1Votes: number;
+  competitor2Votes: number;
+  showVotes: boolean;
 }) {
   return (
-    <div className="flex items-center gap-3">
-      <div className="flex-1">
+    <div className="space-y-2">
+      <div className="flex items-center justify-between gap-3">
         <MobileContestant
           contestant={contestant1}
           isWinner={winner?.id === contestant1?.id}
         />
+        {showVotes && (
+          <span className="text-sm font-medium text-text/60">
+            {competitor1Votes}
+          </span>
+        )}
       </div>
-      <span className="text-xs font-bold text-text/40">VS</span>
-      <div className="flex-1">
+      <div className="text-center text-xs font-bold text-text/40">VS</div>
+      <div className="flex items-center justify-between gap-3">
         <MobileContestant
           contestant={contestant2}
           isWinner={winner?.id === contestant2?.id}
         />
+        {showVotes && (
+          <span className="text-sm font-medium text-text/60">
+            {competitor2Votes}
+          </span>
+        )}
       </div>
     </div>
   );

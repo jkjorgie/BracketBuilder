@@ -3,8 +3,7 @@
 import { useState, useEffect, useCallback, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { BracketRound, SubmissionForm, SuccessModal } from '@/components';
-import { mockBracket } from '@/data/mockBracket';
-import { Bracket } from '@/types/bracket';
+import { Contestant, Round } from '@/types/bracket';
 import {
   getUserProfile,
   saveUserProfile,
@@ -12,26 +11,71 @@ import {
   saveCurrentSelections,
   getSubmission,
   saveSubmission,
-  hasSubmittedForSource,
   StoredBracketSubmission,
 } from '@/lib/storage';
+
+interface CampaignData {
+  campaign: {
+    id: string;
+    slug: string;
+    name: string;
+    description: string | null;
+    currentRound: number;
+    isDemo: boolean;
+  };
+  siteConfig: {
+    siteName: string;
+    eventName: string;
+    description: string | null;
+  } | null;
+  rounds: Round[];
+  eliminatedCompetitorIds: string[];
+  champion: Contestant | null;
+}
 
 function VotePageContent() {
   const searchParams = useSearchParams();
   const source = searchParams.get('source') || 'direct';
 
-  const [bracket] = useState<Bracket>(mockBracket);
+  const [campaignData, setCampaignData] = useState<CampaignData | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [selections, setSelections] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [hasSubmitted, setHasSubmitted] = useState(false);
   const [userName, setUserName] = useState('');
   const [userEmail, setUserEmail] = useState('');
-  const [eliminatedContestants, setEliminatedContestants] = useState<Set<string>>(new Set());
   const [isLoaded, setIsLoaded] = useState(false);
 
+  // Fetch campaign data from API
+  useEffect(() => {
+    async function fetchCampaign() {
+      try {
+        setIsLoading(true);
+        const response = await fetch('/api/campaigns/active');
+        if (!response.ok) {
+          if (response.status === 404) {
+            setError('No active campaign found');
+          } else {
+            setError('Failed to load campaign');
+          }
+          return;
+        }
+        const data = await response.json();
+        setCampaignData(data);
+      } catch (err) {
+        console.error('Error fetching campaign:', err);
+        setError('Failed to load campaign');
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    fetchCampaign();
+  }, []);
+
   // Get the active round
-  const activeRound = bracket.rounds.find((r) => r.isActive);
+  const activeRound = campaignData?.rounds.find((r) => r.isActive);
   const activeMatchups = activeRound?.matchups || [];
   const totalMatchups = activeMatchups.filter(
     (m) => m.contestant1 && m.contestant2
@@ -39,32 +83,12 @@ function VotePageContent() {
   const selectedCount = Object.keys(selections).length;
   const isComplete = selectedCount === totalMatchups && totalMatchups > 0;
 
-  // Calculate eliminated contestants from previous rounds
-  const calculateEliminatedContestants = useCallback((): Set<string> => {
-    const eliminated = new Set<string>();
-    
-    // Go through all completed rounds and find losers
-    for (const round of bracket.rounds) {
-      if (round.isComplete) {
-        for (const matchup of round.matchups) {
-          if (matchup.winner && matchup.contestant1 && matchup.contestant2) {
-            // The loser is the one who isn't the winner
-            const loserId = matchup.winner.id === matchup.contestant1.id 
-              ? matchup.contestant2.id 
-              : matchup.contestant1.id;
-            eliminated.add(loserId);
-          }
-        }
-      }
-    }
-    
-    return eliminated;
-  }, [bracket.rounds]);
+  // Eliminated contestants from API response
+  const eliminatedContestants = new Set(campaignData?.eliminatedCompetitorIds || []);
 
   // Load user data and check submission status on mount
   useEffect(() => {
-    // Calculate eliminated contestants
-    setEliminatedContestants(calculateEliminatedContestants());
+    if (!campaignData) return;
 
     // Load user profile
     const profile = getUserProfile();
@@ -73,8 +97,12 @@ function VotePageContent() {
       setUserEmail(profile.email);
     }
 
-    // Check if already submitted for this source
-    const existingSubmission = getSubmission(bracket.id, bracket.currentRound, source);
+    // Check if already submitted for this source (local storage check)
+    const existingSubmission = getSubmission(
+      campaignData.campaign.slug,
+      campaignData.campaign.currentRound,
+      source
+    );
     if (existingSubmission) {
       setHasSubmitted(true);
       setSelections(existingSubmission.selections);
@@ -82,67 +110,145 @@ function VotePageContent() {
       setUserEmail(existingSubmission.email);
     } else {
       // Try to load previous selections for quick resubmit
-      const savedSelections = getCurrentSelections(bracket.id, bracket.currentRound);
+      const savedSelections = getCurrentSelections(
+        campaignData.campaign.slug,
+        campaignData.campaign.currentRound
+      );
       if (savedSelections) {
         setSelections(savedSelections);
       }
     }
 
     setIsLoaded(true);
-  }, [bracket.id, bracket.currentRound, source, calculateEliminatedContestants]);
+  }, [campaignData, source]);
 
   const handleSelectWinner = (matchupId: string, contestantId: string) => {
-    if (hasSubmitted) return;
-    
+    if (hasSubmitted || !campaignData) return;
+
     const newSelections = {
       ...selections,
       [matchupId]: contestantId,
     };
-    
+
     setSelections(newSelections);
-    
+
     // Save selections as user makes them (for persistence across sources)
-    saveCurrentSelections(bracket.id, bracket.currentRound, newSelections);
+    saveCurrentSelections(
+      campaignData.campaign.slug,
+      campaignData.campaign.currentRound,
+      newSelections
+    );
   };
 
-  const handleSubmit = async (email: string, name: string) => {
-    if (!isComplete || isSubmitting || hasSubmitted) return;
-
-    // Double-check they haven't already submitted for this source
-    if (hasSubmittedForSource(bracket.id, bracket.currentRound, source)) {
-      setHasSubmitted(true);
-      return;
-    }
+  const handleSubmit = useCallback(async (email: string, name: string) => {
+    if (!isComplete || isSubmitting || hasSubmitted || !campaignData) return;
 
     setIsSubmitting(true);
 
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1000));
+    try {
+      // Submit to the API
+      const response = await fetch('/api/vote/submit', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          campaignSlug: campaignData.campaign.slug,
+          selections,
+          voterName: name,
+          voterEmail: email,
+          source,
+        }),
+      });
 
-    // Save user profile for future use
-    saveUserProfile({ name, email });
+      const result = await response.json();
 
-    // Save the submission
-    const submission: StoredBracketSubmission = {
-      bracketId: bracket.id,
-      roundNumber: bracket.currentRound,
-      selections,
-      source,
-      name,
-      email,
-      submittedAt: new Date().toISOString(),
-    };
-    saveSubmission(submission);
+      if (!response.ok) {
+        if (response.status === 409) {
+          // Already voted
+          setHasSubmitted(true);
+        } else {
+          throw new Error(result.error || 'Failed to submit vote');
+        }
+        return;
+      }
 
-    // Also save as current selections (for quick resubmit on other sources)
-    saveCurrentSelections(bracket.id, bracket.currentRound, selections);
+      // Save user profile for future use
+      saveUserProfile({ name, email });
 
-    setUserName(name);
-    setUserEmail(email);
-    setIsSubmitting(false);
-    setHasSubmitted(true);
-    setShowSuccess(true);
-  };
+      // Save the submission to local storage
+      const submission: StoredBracketSubmission = {
+        bracketId: campaignData.campaign.slug,
+        roundNumber: campaignData.campaign.currentRound,
+        selections,
+        source,
+        name,
+        email,
+        submittedAt: new Date().toISOString(),
+      };
+      saveSubmission(submission);
+
+      // Also save as current selections (for quick resubmit on other sources)
+      saveCurrentSelections(
+        campaignData.campaign.slug,
+        campaignData.campaign.currentRound,
+        selections
+      );
+
+      setUserName(name);
+      setUserEmail(email);
+      setHasSubmitted(true);
+      setShowSuccess(true);
+    } catch (err) {
+      console.error('Error submitting vote:', err);
+      alert(err instanceof Error ? err.message : 'Failed to submit vote');
+    } finally {
+      setIsSubmitting(false);
+    }
+  }, [campaignData, hasSubmitted, isComplete, isSubmitting, selections, source]);
+
+  // Loading state
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-16">
+        <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full" />
+      </div>
+    );
+  }
+
+  // Error state
+  if (error || !campaignData) {
+    return (
+      <div className="text-center py-16">
+        <div className="inline-flex items-center justify-center w-16 h-16 bg-surface rounded-full mb-4">
+          <svg
+            className="w-8 h-8 text-text/50"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            aria-hidden="true"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+            />
+          </svg>
+        </div>
+        <h2 className="text-2xl font-bold text-text mb-2">
+          {error || 'No Active Campaign'}
+        </h2>
+        <p className="text-text/70 max-w-md mx-auto">
+          There&apos;s no active voting campaign at the moment. Check back later or view
+          the current results.
+        </p>
+        <a href="/results" className="btn btn-primary mt-6 inline-flex">
+          View Results
+        </a>
+      </div>
+    );
+  }
 
   // Don't render until we've loaded from localStorage
   if (!isLoaded) {
@@ -278,9 +384,9 @@ function VotePageContent() {
       {/* Bracket info */}
       <div className="mb-8">
         <h1 className="text-3xl md:text-4xl font-bold text-text mb-2">
-          {bracket.name}
+          {campaignData.campaign.name}
         </h1>
-        <p className="text-lg text-text/70">{bracket.description}</p>
+        <p className="text-lg text-text/70">{campaignData.campaign.description}</p>
       </div>
 
       {/* Voting grid */}
