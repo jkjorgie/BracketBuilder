@@ -221,6 +221,43 @@ model VoteSource {
 }
 
 // ============================================================================
+// ADMIN USERS
+// ============================================================================
+
+model User {
+  id            String   @id @default(cuid())
+  email         String   @unique
+  passwordHash  String
+  name          String?
+  role          String   @default("admin") // admin, superadmin
+  
+  isActive      Boolean  @default(true)
+  lastLoginAt   DateTime?
+  
+  // Session management
+  sessions      Session[]
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([email])
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([token])
+  @@index([userId])
+}
+
+// ============================================================================
 // ADMIN AUDIT LOG
 // ============================================================================
 
@@ -232,9 +269,11 @@ model AuditLog {
   details   Json?    // Additional context
   ipAddress String?
   userAgent String?
+  userId    String?  // Admin who performed the action
   
   createdAt DateTime @default(now())
 
   @@index([entityType, entityId])
   @@index([createdAt])
+  @@index([userId])
 }

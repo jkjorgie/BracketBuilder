@@ -1,16 +1,87 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { mockBracket } from '@/data/mockBracket';
+
+interface Contestant {
+  id: string;
+  name: string;
+  description: string;
+  seed: number | null;
+}
+
+interface Matchup {
+  id: string;
+  contestant1: Contestant | null;
+  contestant2: Contestant | null;
+}
+
+interface Round {
+  roundNumber: number;
+  name: string;
+  isActive: boolean;
+  isComplete: boolean;
+  startDate?: string;
+  matchups: Matchup[];
+}
+
+interface CampaignData {
+  campaign: {
+    id: string;
+    name: string;
+    description: string | null;
+    currentRound: number;
+    isDemo: boolean;
+  };
+  siteConfig: {
+    siteName: string;
+    eventName: string;
+    description: string | null;
+  } | null;
+  rounds: Round[];
+}
 
 export default function HomePage() {
-  const bracket = mockBracket;
-  const activeRound = bracket.rounds.find((r) => r.isActive);
-  const contestantCount = bracket.rounds[0].matchups.length * 2;
+  const [data, setData] = useState<CampaignData | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchCampaign() {
+      try {
+        const response = await fetch('/api/campaigns/active');
+        if (response.ok) {
+          const result = await response.json();
+          setData(result);
+        }
+      } catch (error) {
+        console.error('Error fetching campaign:', error);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchCampaign();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="text-center">
+          <div className="animate-spin w-12 h-12 border-4 border-primary border-t-transparent rounded-full mx-auto mb-4" />
+          <p className="text-text/60">Loading bracket...</p>
+        </div>
+      </div>
+    );
+  }
+
+  const activeRound = data?.rounds.find((r) => r.isActive);
+  const contestantCount = data?.rounds[0]?.matchups.length ? data.rounds[0].matchups.length * 2 : 0;
+  const campaignName = data?.campaign?.name || 'GT eForms Feature Face Off';
+  const campaignDescription = data?.campaign?.description || data?.siteConfig?.description || 
+    'Help us decide which GT eForms feature to build next!';
 
   return (
     <div className="space-y-12">
-      {/* Hero Section */}
+      {/* Hero Section - March Madness Theme */}
       <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-primary via-primary-light to-secondary p-8 md:p-12 lg:p-16">
         {/* Background pattern */}
         <div
@@ -23,16 +94,16 @@ export default function HomePage() {
 
         <div className="relative z-10 max-w-3xl">
           <span className="inline-flex items-center gap-2 bg-white/20 backdrop-blur-sm text-text font-semibold px-4 py-2 rounded-full text-sm mb-6">
-            <span className="w-2 h-2 bg-success rounded-full animate-pulse" />
-            {activeRound ? `${activeRound.name} - Voting Open` : 'Competition Active'}
+            <span className="text-lg" aria-hidden="true">🏀</span>
+            {activeRound ? `${activeRound.name} - Voting Open!` : 'Tournament Active'}
           </span>
 
           <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-text mb-4 leading-tight">
-            {bracket.name}
+            {campaignName}
           </h1>
 
           <p className="text-lg md:text-xl text-text/80 mb-8 max-w-2xl">
-            {bracket.description}
+            {campaignDescription}
           </p>
 
           <div className="flex flex-wrap gap-4">
@@ -54,18 +125,18 @@ export default function HomePage() {
                   d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"
                 />
               </svg>
-              Vote Now
+              Fill Out Your Bracket
             </Link>
             <Link
               href="/results"
               className="btn bg-white/90 text-text hover:bg-white text-lg px-8 py-4"
             >
-              View Results
+              View Standings
             </Link>
           </div>
         </div>
 
-        {/* Decorative bracket illustration */}
+        {/* Basketball decorative element */}
         <div
           className="absolute right-0 top-1/2 -translate-y-1/2 opacity-20 hidden lg:block"
           aria-hidden="true"
@@ -98,20 +169,23 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* How It Works */}
+      {/* How It Works - March Madness Style */}
       <section aria-labelledby="how-it-works-heading">
         <h2
           id="how-it-works-heading"
-          className="text-2xl md:text-3xl font-bold text-text mb-8 text-center"
+          className="text-2xl md:text-3xl font-bold text-text mb-2 text-center"
         >
-          How It Works
+          How the Tournament Works
         </h2>
+        <p className="text-text/60 text-center mb-8 max-w-2xl mx-auto">
+          Just like March Madness — fill out your bracket, watch the matchups unfold, and help crown a champion!
+        </p>
 
         <div className="grid md:grid-cols-3 gap-6">
           <StepCard
             number={1}
-            title="Vote Multiple Times"
-            description="Visit our booth daily for one vote, plus get an extra vote at each GT session you attend. More visits = more influence!"
+            title="Get Your Game Day Pass"
+            description="Visit our booth each day for a vote, plus earn bonus votes at every GT session. More appearances = more influence on the final four!"
             icon={
               <svg
                 className="w-8 h-8"
@@ -123,15 +197,15 @@ export default function HomePage() {
                   strokeLinecap="round"
                   strokeLinejoin="round"
                   strokeWidth={2}
-                  d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"
+                  d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z"
                 />
               </svg>
             }
           />
           <StepCard
             number={2}
-            title="Cast Your Votes"
-            description="Select your winner for each matchup in the current round. Your voice matters!"
+            title="Pick Your Winners"
+            description="Study the matchups and make your picks! Each feature competes head-to-head — choose wisely, your bracket is at stake."
             icon={
               <svg
                 className="w-8 h-8"
@@ -150,8 +224,8 @@ export default function HomePage() {
           />
           <StepCard
             number={3}
-            title="Return Daily"
-            description="Come back each day to vote on the next round until we crown a champion!"
+            title="Advance to the Next Round"
+            description="Return each day as the bracket narrows! Quarterfinals → Semifinals → Championship. Will your picks make the Final Four?"
             icon={
               <svg
                 className="w-8 h-8"
@@ -163,7 +237,7 @@ export default function HomePage() {
                   strokeLinecap="round"
                   strokeLinejoin="round"
                   strokeWidth={2}
-                  d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                  d="M13 10V3L4 14h7v7l9-11h-7z"
                 />
               </svg>
             }
@@ -172,139 +246,148 @@ export default function HomePage() {
       </section>
 
       {/* Current Contestants */}
-      <section aria-labelledby="contestants-heading">
-        <div className="flex items-center justify-between mb-8">
-          <h2
-            id="contestants-heading"
-            className="text-2xl md:text-3xl font-bold text-text"
-          >
-            Alliance 2026 Contestants
-          </h2>
-          <span className="text-sm font-medium text-text/60 bg-surface px-3 py-1 rounded-full">
-            {contestantCount} Features
-          </span>
-        </div>
+      {data && data.rounds[0] && (
+        <section aria-labelledby="contestants-heading">
+          <div className="flex items-center justify-between mb-8">
+            <div>
+              <h2
+                id="contestants-heading"
+                className="text-2xl md:text-3xl font-bold text-text"
+              >
+                The Tournament Field
+              </h2>
+              <p className="text-text/60 mt-1">Meet this year&apos;s contenders — who will cut down the nets?</p>
+            </div>
+            <span className="text-sm font-medium text-text/60 bg-surface px-3 py-1 rounded-full">
+              🏀 {contestantCount} Competitors
+            </span>
+          </div>
 
-        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {bracket.rounds[0].matchups.flatMap((matchup) => [
-            matchup.contestant1,
-            matchup.contestant2,
-          ]).filter(Boolean).map((contestant, index) => (
-            <div
-              key={contestant!.id}
-              className="bg-white border-2 border-border rounded-xl p-5 hover:border-primary transition-colors animate-fade-in"
-              style={{ animationDelay: `${index * 50}ms`, opacity: 0 }}
-            >
-              <div className="flex items-start gap-3">
-                <span className="inline-flex items-center justify-center w-8 h-8 text-sm font-bold bg-secondary text-white rounded-full flex-shrink-0">
-                  {contestant!.seed}
-                </span>
-                <div>
-                  <h3 className="font-semibold text-text">{contestant!.name}</h3>
-                  <p className="text-sm text-text/70 mt-1 line-clamp-2">
-                    {contestant!.description}
-                  </p>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {data.rounds[0].matchups.flatMap((matchup) => [
+              matchup.contestant1,
+              matchup.contestant2,
+            ]).filter(Boolean).map((contestant, index) => (
+              <div
+                key={contestant!.id}
+                className="bg-white border-2 border-border rounded-xl p-5 hover:border-primary transition-colors animate-fade-in"
+                style={{ animationDelay: `${index * 50}ms`, opacity: 0 }}
+              >
+                <div className="flex items-start gap-3">
+                  <span className="inline-flex items-center justify-center w-8 h-8 text-sm font-bold bg-secondary text-white rounded-full flex-shrink-0">
+                    #{contestant!.seed}
+                  </span>
+                  <div>
+                    <h3 className="font-semibold text-text">{contestant!.name}</h3>
+                    <p className="text-sm text-text/70 mt-1 line-clamp-2">
+                      {contestant!.description}
+                    </p>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
-        </div>
-      </section>
+            ))}
+          </div>
+        </section>
+      )}
 
-      {/* Schedule */}
-      <section
-        aria-labelledby="schedule-heading"
-        className="bg-surface rounded-2xl p-8"
-      >
-        <h2
-          id="schedule-heading"
-          className="text-2xl md:text-3xl font-bold text-text mb-6"
+      {/* Schedule - Tournament Bracket Style */}
+      {data && (
+        <section
+          aria-labelledby="schedule-heading"
+          className="bg-surface rounded-2xl p-8"
         >
-          Voting Schedule
-        </h2>
+          <h2
+            id="schedule-heading"
+            className="text-2xl md:text-3xl font-bold text-text mb-2"
+          >
+            Tournament Schedule
+          </h2>
+          <p className="text-text/60 mb-6">One round per day — don&apos;t miss your window to vote!</p>
 
-        <div className="space-y-4">
-          {bracket.rounds.map((round) => (
-            <div
-              key={round.roundNumber}
-              className={`flex items-center gap-4 p-4 rounded-xl transition-colors ${
-                round.isActive
-                  ? 'bg-primary/20 border-2 border-primary'
-                  : round.isComplete
-                  ? 'bg-white border-2 border-success'
-                  : 'bg-white border-2 border-border'
-              }`}
-            >
+          <div className="space-y-4">
+            {data.rounds.map((round) => (
               <div
-                className={`w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 ${
+                key={round.roundNumber}
+                className={`flex items-center gap-4 p-4 rounded-xl transition-colors ${
                   round.isActive
-                    ? 'bg-primary text-text'
+                    ? 'bg-primary/20 border-2 border-primary'
                     : round.isComplete
-                    ? 'bg-success text-white'
-                    : 'bg-border text-text/50'
+                    ? 'bg-white border-2 border-success'
+                    : 'bg-white border-2 border-border'
                 }`}
               >
-                {round.isComplete ? (
-                  <svg
-                    className="w-6 h-6"
-                    fill="currentColor"
-                    viewBox="0 0 20 20"
+                <div
+                  className={`w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 ${
+                    round.isActive
+                      ? 'bg-primary text-text'
+                      : round.isComplete
+                      ? 'bg-success text-white'
+                      : 'bg-border text-text/50'
+                  }`}
+                >
+                  {round.isComplete ? (
+                    <svg
+                      className="w-6 h-6"
+                      fill="currentColor"
+                      viewBox="0 0 20 20"
+                    >
+                      <path
+                        fillRule="evenodd"
+                        d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                  ) : (
+                    <span className="font-bold">{round.roundNumber}</span>
+                  )}
+                </div>
+
+                <div className="flex-1">
+                  <h3 className="font-semibold text-text">{round.name}</h3>
+                  <p className="text-sm text-text/60">
+                    {round.matchups.length} matchup
+                    {round.matchups.length !== 1 ? 's' : ''}
+                    {round.startDate && ` • ${formatDate(round.startDate)}`}
+                  </p>
+                </div>
+
+                {round.isActive && (
+                  <Link
+                    href="/vote"
+                    className="btn btn-primary text-sm"
                   >
-                    <path
-                      fillRule="evenodd"
-                      d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                      clipRule="evenodd"
-                    />
-                  </svg>
-                ) : (
-                  <span className="font-bold">{round.roundNumber}</span>
+                    🏀 Vote Now
+                  </Link>
+                )}
+                {round.isComplete && (
+                  <span className="text-sm font-medium text-success flex items-center gap-1">
+                    <span>✓</span> Complete
+                  </span>
+                )}
+                {!round.isActive && !round.isComplete && (
+                  <span className="text-sm text-text/50">Upcoming</span>
                 )}
               </div>
+            ))}
+          </div>
+        </section>
+      )}
 
-              <div className="flex-1">
-                <h3 className="font-semibold text-text">{round.name}</h3>
-                <p className="text-sm text-text/60">
-                  {round.matchups.length} matchup
-                  {round.matchups.length !== 1 ? 's' : ''}
-                  {round.startDate && ` • ${formatDate(round.startDate)}`}
-                </p>
-              </div>
-
-              {round.isActive && (
-                <Link
-                  href="/vote"
-                  className="btn btn-primary text-sm"
-                >
-                  Vote Now
-                </Link>
-              )}
-              {round.isComplete && (
-                <span className="text-sm font-medium text-success">
-                  Complete
-                </span>
-              )}
-              {!round.isActive && !round.isComplete && (
-                <span className="text-sm text-text/50">Upcoming</span>
-              )}
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* CTA Section */}
+      {/* CTA Section - March Madness Theme */}
       <section className="text-center py-8">
+        <div className="text-5xl mb-4" aria-hidden="true">🏆</div>
         <h2 className="text-2xl md:text-3xl font-bold text-text mb-4">
-          Ready to Make Your Voice Heard?
+          Ready to Fill Out Your Bracket?
         </h2>
         <p className="text-text/70 mb-6 max-w-xl mx-auto">
-          Your vote helps shape the future of our product. Don&apos;t miss your
-          chance to influence what gets built next!
+          The tournament waits for no one! Cast your votes and help decide which feature gets crowned champion. 
+          Will there be upsets? Cinderella stories? Only your votes can tell!
         </p>
         <Link
           href="/vote"
           className="btn btn-primary text-lg px-8 py-4 inline-flex"
         >
-          Start Voting
+          Enter the Tournament
           <svg
             className="w-5 h-5"
             fill="none"
@@ -343,7 +426,7 @@ function StepCard({
       </div>
       <div className="inline-flex items-center justify-center w-8 h-8 bg-primary text-text font-bold rounded-full text-sm mb-3">
         {number}
-      </div>
+        </div>
       <h3 className="text-lg font-semibold text-text mb-2">{title}</h3>
       <p className="text-text/70 text-sm">{description}</p>
     </div>

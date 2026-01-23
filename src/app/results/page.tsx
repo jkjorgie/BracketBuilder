@@ -45,25 +45,46 @@ interface ResultsData {
   champion: Contestant | null;
 }
 
+interface User {
+  id: string;
+  email: string;
+  name: string | null;
+  role: string;
+}
+
 export default function ResultsPage() {
   const [data, setData] = useState<ResultsData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
-    async function fetchResults() {
+    async function fetchData() {
       try {
         setIsLoading(true);
-        const response = await fetch('/api/results');
-        if (!response.ok) {
-          if (response.status === 404) {
+        
+        // Fetch results and session in parallel
+        const [resultsResponse, sessionResponse] = await Promise.all([
+          fetch('/api/results'),
+          fetch('/api/auth/session'),
+        ]);
+
+        // Check admin status
+        if (sessionResponse.ok) {
+          const sessionData = await sessionResponse.json();
+          setIsAdmin(sessionData.authenticated && sessionData.user?.role === 'admin');
+        }
+
+        // Process results
+        if (!resultsResponse.ok) {
+          if (resultsResponse.status === 404) {
             setError('No campaign found');
           } else {
             setError('Failed to load results');
           }
           return;
         }
-        const result = await response.json();
+        const result = await resultsResponse.json();
         setData(result);
       } catch (err) {
         console.error('Error fetching results:', err);
@@ -72,7 +93,7 @@ export default function ResultsPage() {
         setIsLoading(false);
       }
     }
-    fetchResults();
+    fetchData();
   }, []);
 
   if (isLoading) {
@@ -255,10 +276,15 @@ export default function ResultsPage() {
         />
       </div>
 
-      {/* Votes by source */}
-      {data.statistics.votesBySource.length > 0 && (
+      {/* Votes by source - Admin only */}
+      {isAdmin && data.statistics.votesBySource.length > 0 && (
         <div className="mt-8 bg-white border-2 border-border rounded-xl p-6">
-          <h2 className="text-xl font-bold text-text mb-4">Votes by Source</h2>
+          <h2 className="text-xl font-bold text-text mb-4 flex items-center gap-2">
+            Votes by Source
+            <span className="text-xs bg-primary/20 text-primary-dark px-2 py-0.5 rounded-full">
+              Admin Only
+            </span>
+          </h2>
           <div className="grid sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
             {data.statistics.votesBySource.map((item) => (
               <div
