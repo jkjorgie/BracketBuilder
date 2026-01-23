@@ -121,12 +121,12 @@ export async function GET(request: NextRequest) {
         siteName: siteConfig.siteName,
         eventName: siteConfig.eventName,
       } : null,
-      rounds: campaign.rounds.map(round => ({
+      rounds: campaign.rounds.map((round: typeof campaign.rounds[number]) => ({
         roundNumber: round.roundNumber,
         name: round.name,
         isActive: round.isActive,
         isComplete: round.isComplete,
-        matchups: round.matchups.map(matchup => ({
+        matchups: round.matchups.map((matchup: typeof round.matchups[number]) => ({
           id: matchup.id,
           matchupIndex: matchup.matchupIndex,
           contestant1: matchup.competitor1 ? {
@@ -153,7 +153,7 @@ export async function GET(request: NextRequest) {
         totalVotes,
         uniqueVoters: uniqueVoters.length,
         totalCompetitors: campaign.competitors.length,
-        votesBySource: votesBySource.map(v => ({
+        votesBySource: votesBySource.map((v: typeof votesBySource[number]) => ({
           source: v.source,
           count: v._count.id,
         })),

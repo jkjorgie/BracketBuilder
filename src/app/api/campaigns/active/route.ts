@@ -72,14 +72,14 @@ export async function GET() {
         eventName: siteConfig.eventName,
         description: siteConfig.description,
       } : null,
-      rounds: campaign.rounds.map(round => ({
+      rounds: campaign.rounds.map((round: typeof campaign.rounds[number]) => ({
         roundNumber: round.roundNumber,
         name: round.name,
         isActive: round.isActive,
         isComplete: round.isComplete,
         startDate: round.startDate?.toISOString(),
         endDate: round.endDate?.toISOString(),
-        matchups: round.matchups.map(matchup => ({
+        matchups: round.matchups.map((matchup: typeof round.matchups[number]) => ({
           id: matchup.id,
           matchupIndex: matchup.matchupIndex,
           roundNumber: round.roundNumber,
