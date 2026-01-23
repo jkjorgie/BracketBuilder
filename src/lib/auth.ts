@@ -1,11 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
 
-// Get the auth secret from environment
-const AUTH_SECRET = process.env.AUTH_SECRET;
-
-if (!AUTH_SECRET && process.env.NODE_ENV === 'production') {
-  throw new Error('AUTH_SECRET environment variable is required in production');
+// Get the auth secret lazily to avoid build-time errors
+function getAuthSecret(): string | undefined {
+  return process.env.AUTH_SECRET;
 }
 
 /**
@@ -25,16 +23,22 @@ export function validateAuthHeader(request: NextRequest): boolean {
     : authHeader;
 
   // Use timing-safe comparison to prevent timing attacks
-  if (!AUTH_SECRET) {
+  const authSecret = getAuthSecret();
+  
+  if (!authSecret) {
     // In development without AUTH_SECRET, allow all requests
-    console.warn('AUTH_SECRET not set - allowing request in development mode');
-    return process.env.NODE_ENV === 'development';
+    if (process.env.NODE_ENV === 'development') {
+      console.warn('AUTH_SECRET not set - allowing request in development mode');
+      return true;
+    }
+    console.error('AUTH_SECRET not set in production - denying request');
+    return false;
   }
 
   try {
     return crypto.timingSafeEqual(
       Buffer.from(token),
-      Buffer.from(AUTH_SECRET)
+      Buffer.from(authSecret)
     );
   } catch {
     return false;

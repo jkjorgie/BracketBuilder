@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import prisma from '@/lib/db';
+import prisma, { TransactionClient } from '@/lib/db';
 import { requireAuth } from '@/lib/auth';
 import { logAudit } from '@/lib/audit';
 
@@ -90,7 +90,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Create campaign with competitors and initial rounds
-    const campaign = await prisma.$transaction(async (tx: typeof prisma) => {
+    const campaign = await prisma.$transaction(async (tx: TransactionClient) => {
       // Create the campaign
       const newCampaign = await tx.campaign.create({
         data: {

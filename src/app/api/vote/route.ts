@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import prisma from '@/lib/db';
+import prisma, { TransactionClient } from '@/lib/db';
 import { logAudit } from '@/lib/audit';
 
 // POST /api/vote - Submit a vote
@@ -102,7 +102,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Create the vote and update vote counts
-    const vote = await prisma.$transaction(async (tx: typeof prisma) => {
+    const vote = await prisma.$transaction(async (tx: TransactionClient) => {
       // Create the vote
       const newVote = await tx.vote.create({
         data: {

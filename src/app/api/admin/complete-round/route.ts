@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import prisma from '@/lib/db';
+import prisma, { TransactionClient } from '@/lib/db';
 import { requireAuth } from '@/lib/auth';
 import { logAudit } from '@/lib/audit';
 
@@ -91,7 +91,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Apply winners in a transaction
-    const result = await prisma.$transaction(async (tx: typeof prisma) => {
+    const result = await prisma.$transaction(async (tx: TransactionClient) => {
       // Set winners on matchups and eliminate losers
       for (const { matchupId, winnerId, loserId } of winners) {
         await tx.matchup.update({

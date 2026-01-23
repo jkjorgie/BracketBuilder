@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import prisma from '@/lib/db';
+import prisma, { TransactionClient } from '@/lib/db';
 import { logAudit } from '@/lib/audit';
 
 // POST /api/vote/submit - Submit all votes for a round at once
@@ -111,7 +111,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Create all votes in a transaction
-    const votes = await prisma.$transaction(async (tx: typeof prisma) => {
+    const votes = await prisma.$transaction(async (tx: TransactionClient) => {
       const createdVotes = [];
 
       for (const [matchupId, competitorId] of selectionEntries) {
@@ -147,7 +147,7 @@ export async function POST(request: NextRequest) {
       return createdVotes;
     });
 
-    await logAudit('BRACKET_SUBMITTED', 'Vote', votes[0]?.id || 'batch', {
+    await logAudit('VOTE_SUBMITTED', 'Vote', votes[0]?.id || 'batch', {
       campaignSlug,
       roundNumber: activeRound.roundNumber,
       source,

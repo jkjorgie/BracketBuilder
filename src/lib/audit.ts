@@ -29,7 +29,8 @@ export async function logAudit(
         action,
         entityType,
         entityId,
-        details: details ? details : undefined,
+        // Cast to satisfy Prisma's JSON type requirements
+        details: details as object | undefined,
         ipAddress: request?.headers.get('x-forwarded-for') || request?.headers.get('x-real-ip') || null,
         userAgent: request?.headers.get('user-agent') || null,
       },
