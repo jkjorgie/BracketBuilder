@@ -23,7 +23,7 @@ export function Header() {
             <Link
               href="/"
               className="flex items-center gap-2 text-xl font-bold text-text hover:text-primary transition-colors"
-              aria-label="Bracket Builder - Home"
+              aria-label="GT eForms Feature Face Off - Home"
             >
               <svg
                 className="w-8 h-8 text-primary"
@@ -73,7 +73,7 @@ export function Header() {
                   opacity="0.5"
                 />
               </svg>
-              <span className="hidden sm:inline">Bracket Builder</span>
+              <span className="hidden sm:inline">GT eForms Feature Face Off</span>
             </Link>
 
             {/* Navigation */}

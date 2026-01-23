@@ -1,8 +1,8 @@
 import { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: 'Results - Bracket Builder',
-  description: 'View the current standings and results of the bracket competition.',
+  title: 'Results - GT eForms Feature Face Off',
+  description: 'View the current standings and results of the GT eForms Feature Face Off at Alliance 2026.',
 };
 
 export default function ResultsLayout({

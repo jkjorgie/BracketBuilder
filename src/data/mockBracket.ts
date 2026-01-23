@@ -122,9 +122,9 @@ export function createMockBracket(): Bracket {
 
   return {
     id: 'bracket-2026-features',
-    name: 'Feature Face-Off 2026',
+    name: 'GT eForms Feature Face Off',
     description:
-      'Help us decide which product feature to build next! Vote for your favorites in this bracket-style competition.',
+      'Help us decide which GT eForms feature to build next! Vote for your favorites at Alliance 2026.',
     rounds,
     currentRound: 1,
     champion: null,

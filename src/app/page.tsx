@@ -178,7 +178,7 @@ export default function HomePage() {
             id="contestants-heading"
             className="text-2xl md:text-3xl font-bold text-text"
           >
-            This Year&apos;s Contestants
+            Alliance 2026 Contestants
           </h2>
           <span className="text-sm font-medium text-text/60 bg-surface px-3 py-1 rounded-full">
             {contestantCount} Features

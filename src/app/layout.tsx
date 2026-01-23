@@ -16,14 +16,14 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'Bracket Builder - Vote for Your Favorite Features',
+  title: 'GT eForms Feature Face Off - Alliance 2026',
   description:
-    'Help decide which product features get built next! Vote in our bracket-style competition and make your voice heard.',
-  keywords: ['bracket', 'voting', 'features', 'product', 'competition'],
+    'Help decide which GT eForms features get built next! Vote in our bracket-style competition at Alliance 2026.',
+  keywords: ['bracket', 'voting', 'features', 'GT eForms', 'Alliance 2026'],
   openGraph: {
-    title: 'Bracket Builder - Vote for Your Favorite Features',
+    title: 'GT eForms Feature Face Off - Alliance 2026',
     description:
-      'Help decide which product features get built next! Vote in our bracket-style competition.',
+      'Help decide which GT eForms features get built next! Vote in our bracket-style competition.',
     type: 'website',
   },
 };
