@@ -75,11 +75,15 @@ export async function POST(request: NextRequest) {
     }
 
     // Validate all selections
-    const matchupMap = new Map(activeRound.matchups.map((m: typeof activeRound.matchups[number]) => [m.id, m]));
+    type MatchupType = typeof activeRound.matchups[number];
+    const matchupMap: Record<string, MatchupType> = {};
+    for (const m of activeRound.matchups) {
+      matchupMap[m.id] = m;
+    }
     const selectionEntries = Object.entries(selections) as [string, string][];
 
     for (const [matchupId, competitorId] of selectionEntries) {
-      const matchup = matchupMap.get(matchupId);
+      const matchup = matchupMap[matchupId];
       if (!matchup) {
         return NextResponse.json(
           { error: `Invalid matchup: ${matchupId}` },
@@ -115,7 +119,7 @@ export async function POST(request: NextRequest) {
       const createdVotes = [];
 
       for (const [matchupId, competitorId] of selectionEntries) {
-        const matchup = matchupMap.get(matchupId)!;
+        const matchup = matchupMap[matchupId]!;
 
         // Create the vote
         const vote = await tx.vote.create({
