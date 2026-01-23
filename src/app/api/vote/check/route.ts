@@ -38,7 +38,9 @@ export async function GET(request: NextRequest) {
     }
 
     // Get all matchup IDs from the active/specified round
-    const matchupIds = campaign.rounds.flatMap(r => r.matchups.map(m => m.id));
+    const matchupIds = campaign.rounds.flatMap((r: typeof campaign.rounds[number]) => 
+      r.matchups.map((m: typeof r.matchups[number]) => m.id)
+    );
 
     if (matchupIds.length === 0) {
       return NextResponse.json({

@@ -75,7 +75,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Validate all selections
-    const matchupMap = new Map(activeRound.matchups.map(m => [m.id, m]));
+    const matchupMap = new Map(activeRound.matchups.map((m: typeof activeRound.matchups[number]) => [m.id, m]));
     const selectionEntries = Object.entries(selections) as [string, string][];
 
     for (const [matchupId, competitorId] of selectionEntries) {
