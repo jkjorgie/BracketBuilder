@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Campaign not found' }, { status: 404 });
     }
 
-    const currentRound = campaign.rounds.find(r => r.roundNumber === roundNumber);
+    const currentRound = campaign.rounds.find((r: typeof campaign.rounds[number]) => r.roundNumber === roundNumber);
     if (!currentRound) {
       return NextResponse.json({ error: 'Round not found' }, { status: 404 });
     }
@@ -115,7 +115,7 @@ export async function POST(request: NextRequest) {
       });
 
       // Find and activate next round
-      const nextRound = campaign.rounds.find(r => r.roundNumber === roundNumber + 1);
+      const nextRound = campaign.rounds.find((r: typeof campaign.rounds[number]) => r.roundNumber === roundNumber + 1);
       
       if (nextRound) {
         // Advance winners to next round matchups

@@ -81,8 +81,8 @@ export async function POST(request: NextRequest, context: RouteContext) {
             const seedPairs = generateSeedPairs(competitorCount);
             if (seedPairs[j]) {
               const [seed1, seed2] = seedPairs[j];
-              comp1Id = campaign.competitors.find(c => c.seed === seed1)?.id || null;
-              comp2Id = campaign.competitors.find(c => c.seed === seed2)?.id || null;
+              comp1Id = campaign.competitors.find((c: typeof campaign.competitors[number]) => c.seed === seed1)?.id || null;
+              comp2Id = campaign.competitors.find((c: typeof campaign.competitors[number]) => c.seed === seed2)?.id || null;
             }
           }
 

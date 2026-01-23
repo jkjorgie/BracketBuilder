@@ -110,7 +110,7 @@ export async function GET() {
       eliminatedCompetitorIds: Array.from(eliminatedIds),
       // Find champion if final round is complete
       champion: (() => {
-        const finalRound = campaign.rounds.find(r => r.roundNumber === campaign.rounds.length);
+        const finalRound = campaign.rounds.find((r: typeof campaign.rounds[number]) => r.roundNumber === campaign.rounds.length);
         if (finalRound?.isComplete && finalRound.matchups[0]?.winner) {
           return {
             id: finalRound.matchups[0].winner.id,
