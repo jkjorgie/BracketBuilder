@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/db';
+import { Prisma } from '@prisma/client';
 import { requireAuth } from '@/lib/auth';
 import { logAudit } from '@/lib/audit';
+
+type TransactionClient = Prisma.TransactionClient;
 
 // POST /api/admin/set-winner - Manually set a winner for a matchup (admin only)
 export async function POST(request: NextRequest) {
@@ -46,7 +49,7 @@ export async function POST(request: NextRequest) {
       : matchup.competitor1Id;
 
     // Update in transaction
-    await prisma.$transaction(async (tx) => {
+    await prisma.$transaction(async (tx: TransactionClient) => {
       // Set winner
       await tx.matchup.update({
         where: { id: matchupId },

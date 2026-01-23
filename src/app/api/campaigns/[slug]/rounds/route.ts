@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/db';
+import { Prisma } from '@prisma/client';
 import { requireAuth } from '@/lib/auth';
 import { logAudit } from '@/lib/audit';
+
+type TransactionClient = Prisma.TransactionClient;
 
 type RouteContext = {
   params: Promise<{ slug: string }>;
@@ -48,7 +51,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
     };
 
     // Create rounds and matchups in a transaction
-    const result = await prisma.$transaction(async (tx) => {
+    const result = await prisma.$transaction(async (tx: TransactionClient) => {
       // Delete existing rounds and matchups
       await tx.matchup.deleteMany({ where: { campaignId: campaign.id } });
       await tx.round.deleteMany({ where: { campaignId: campaign.id } });

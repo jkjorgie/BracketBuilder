@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/db';
+import { Prisma } from '@prisma/client';
 import { requireAuth } from '@/lib/auth';
 import { logAudit } from '@/lib/audit';
+
+type TransactionClient = Prisma.TransactionClient;
 
 // GET /api/campaigns - Get all campaigns (public) or with details (admin)
 export async function GET(request: NextRequest) {
@@ -90,7 +93,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Create campaign with competitors and initial rounds
-    const campaign = await prisma.$transaction(async (tx) => {
+    const campaign = await prisma.$transaction(async (tx: TransactionClient) => {
       // Create the campaign
       const newCampaign = await tx.campaign.create({
         data: {
