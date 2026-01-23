@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 
 interface User {
   id: string;
@@ -79,6 +79,14 @@ export default function AdminPage() {
   const [selectedCampaign, setSelectedCampaign] = useState<Campaign | null>(null);
   const [dataLoading, setDataLoading] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  
+  // Use ref to track selected campaign ID without causing re-renders
+  const selectedCampaignIdRef = useRef<string | null>(null);
+  
+  // Keep ref in sync with state
+  useEffect(() => {
+    selectedCampaignIdRef.current = selectedCampaign?.id || null;
+  }, [selectedCampaign]);
 
   useEffect(() => {
     checkSession();
@@ -105,7 +113,15 @@ export default function AdminPage() {
       if (res.ok) {
         const data = await res.json();
         setCampaigns(data.campaigns);
-        if (data.campaigns.length > 0 && !selectedCampaign) {
+        
+        // Update the selected campaign with fresh data using ref
+        const currentSelectedId = selectedCampaignIdRef.current;
+        if (currentSelectedId) {
+          const updated = data.campaigns.find((c: Campaign) => c.id === currentSelectedId);
+          if (updated) {
+            setSelectedCampaign(updated);
+          }
+        } else if (data.campaigns.length > 0) {
           setSelectedCampaign(data.campaigns[0]);
         }
       }
@@ -114,7 +130,7 @@ export default function AdminPage() {
     } finally {
       setDataLoading(false);
     }
-  }, [selectedCampaign]);
+  }, []); // No dependencies - uses ref instead
 
   const fetchVoteSources = useCallback(async () => {
     try {
@@ -128,8 +144,11 @@ export default function AdminPage() {
     }
   }, []);
 
+  // Initial data fetch - only runs once when user is set
+  const hasFetchedRef = useRef(false);
   useEffect(() => {
-    if (user) {
+    if (user && !hasFetchedRef.current) {
+      hasFetchedRef.current = true;
       fetchCampaigns();
       fetchVoteSources();
     }
@@ -187,7 +206,7 @@ export default function AdminPage() {
 
       if (res.ok) {
         showMessage('success', `Campaign ${!campaign.isActive ? 'activated' : 'deactivated'}`);
-        fetchCampaigns();
+        await fetchCampaigns();
       } else {
         showMessage('error', 'Failed to update campaign');
       }
@@ -212,7 +231,7 @@ export default function AdminPage() {
 
       if (res.ok) {
         showMessage('success', `Round ${!round.isActive ? 'activated' : 'deactivated'}`);
-        fetchCampaigns();
+        await fetchCampaigns();
       } else {
         showMessage('error', 'Failed to update round');
       }
@@ -231,7 +250,7 @@ export default function AdminPage() {
 
       if (res.ok) {
         showMessage('success', 'Round updated');
-        fetchCampaigns();
+        await fetchCampaigns();
       } else {
         showMessage('error', 'Failed to update round');
       }
@@ -249,8 +268,8 @@ export default function AdminPage() {
       });
 
       if (res.ok) {
-        showMessage('success', 'Winner set');
-        fetchCampaigns();
+        showMessage('success', 'Winner declared! Loser eliminated and winner advanced.');
+        await fetchCampaigns();
       } else {
         showMessage('error', 'Failed to set winner');
       }
@@ -269,7 +288,7 @@ export default function AdminPage() {
 
       if (res.ok) {
         showMessage('success', 'Round completed - winners advanced!');
-        fetchCampaigns();
+        await fetchCampaigns();
       } else {
         showMessage('error', 'Failed to auto-advance round');
       }
@@ -288,7 +307,7 @@ export default function AdminPage() {
 
       if (res.ok) {
         showMessage('success', `Vote source ${!source.isActive ? 'enabled' : 'disabled'}`);
-        fetchVoteSources();
+        await fetchVoteSources();
       } else {
         showMessage('error', 'Failed to update vote source');
       }
@@ -708,6 +727,21 @@ function MatchupsTab({
         <p className="text-gray-400 text-sm">View votes and manually set winners</p>
       </div>
 
+      {/* Instructions Banner */}
+      <div className="bg-[#FF9E18]/10 border border-[#FF9E18]/30 rounded-xl p-4">
+        <div className="flex items-start gap-3">
+          <span className="text-2xl">👆</span>
+          <div>
+            <h4 className="font-semibold text-[#FF9E18]">How to Declare a Winner</h4>
+            <p className="text-gray-300 text-sm">
+              Click on a competitor&apos;s card to <strong>immediately declare them the winner</strong>. 
+              This will eliminate the opponent and advance the winner to the next round. 
+              <span className="text-yellow-400"> This action cannot be undone!</span>
+            </p>
+          </div>
+        </div>
+      </div>
+
       {campaign.rounds.map((round) => (
         <div key={round.id} className="space-y-4">
           <h3 className="text-lg font-medium text-white flex items-center gap-2">
@@ -730,17 +764,34 @@ function MatchupsTab({
                 key={matchup.id}
                 className="bg-gray-800 rounded-xl p-4 border border-gray-700"
               >
+                {/* Matchup status indicator */}
+                {!matchup.winner && matchup.competitor1 && matchup.competitor2 && (
+                  <div className="text-center text-xs text-yellow-400 mb-3 flex items-center justify-center gap-2">
+                    <span className="animate-pulse">●</span>
+                    Click a competitor below to declare them the winner
+                  </div>
+                )}
+                {matchup.winner && (
+                  <div className="text-center text-xs text-green-400 mb-3 flex items-center justify-center gap-2">
+                    <span>✓</span>
+                    Winner decided
+                  </div>
+                )}
+
                 <div className="flex items-center justify-between gap-4">
                   {/* Competitor 1 */}
                   <div className="flex-1">
                     <button
-                      onClick={() => matchup.competitor1 && onSetWinner(matchup.id, matchup.competitor1.id)}
+                      onClick={() => matchup.competitor1 && !matchup.winner && onSetWinner(matchup.id, matchup.competitor1.id)}
                       disabled={!!matchup.winner || !matchup.competitor1}
-                      className={`w-full p-4 rounded-lg text-left transition-colors ${
+                      className={`w-full p-4 rounded-lg text-left transition-all ${
                         matchup.winner?.id === matchup.competitor1?.id
-                          ? 'bg-green-500/20 border-2 border-green-500'
-                          : 'bg-gray-700 hover:bg-gray-600 border-2 border-transparent'
-                      } disabled:cursor-not-allowed`}
+                          ? 'bg-green-500/20 border-2 border-green-500 shadow-lg shadow-green-500/20'
+                          : matchup.winner
+                          ? 'bg-gray-700/50 border-2 border-transparent opacity-50'
+                          : 'bg-gray-700 hover:bg-[#FF9E18]/20 hover:border-[#FF9E18] border-2 border-gray-600 cursor-pointer hover:scale-[1.02]'
+                      } disabled:cursor-not-allowed transition-transform`}
+                      title={!matchup.winner && matchup.competitor1 ? `Click to declare ${matchup.competitor1.name} as winner` : ''}
                     >
                       {matchup.competitor1 ? (
                         <div>
@@ -754,6 +805,11 @@ function MatchupsTab({
                           <div className="text-2xl font-bold text-[#FF9E18]">
                             {matchup.competitor1Votes} <span className="text-sm text-gray-400">votes</span>
                           </div>
+                          {!matchup.winner && (
+                            <div className="text-xs text-gray-500 mt-2">
+                              Click to declare winner →
+                            </div>
+                          )}
                         </div>
                       ) : (
                         <span className="text-gray-500">TBD</span>
@@ -762,18 +818,21 @@ function MatchupsTab({
                   </div>
 
                   {/* VS */}
-                  <div className="text-gray-500 font-bold text-lg">VS</div>
+                  <div className="text-gray-500 font-bold text-lg px-2">VS</div>
 
                   {/* Competitor 2 */}
                   <div className="flex-1">
                     <button
-                      onClick={() => matchup.competitor2 && onSetWinner(matchup.id, matchup.competitor2.id)}
+                      onClick={() => matchup.competitor2 && !matchup.winner && onSetWinner(matchup.id, matchup.competitor2.id)}
                       disabled={!!matchup.winner || !matchup.competitor2}
-                      className={`w-full p-4 rounded-lg text-left transition-colors ${
+                      className={`w-full p-4 rounded-lg text-left transition-all ${
                         matchup.winner?.id === matchup.competitor2?.id
-                          ? 'bg-green-500/20 border-2 border-green-500'
-                          : 'bg-gray-700 hover:bg-gray-600 border-2 border-transparent'
-                      } disabled:cursor-not-allowed`}
+                          ? 'bg-green-500/20 border-2 border-green-500 shadow-lg shadow-green-500/20'
+                          : matchup.winner
+                          ? 'bg-gray-700/50 border-2 border-transparent opacity-50'
+                          : 'bg-gray-700 hover:bg-[#FF9E18]/20 hover:border-[#FF9E18] border-2 border-gray-600 cursor-pointer hover:scale-[1.02]'
+                      } disabled:cursor-not-allowed transition-transform`}
+                      title={!matchup.winner && matchup.competitor2 ? `Click to declare ${matchup.competitor2.name} as winner` : ''}
                     >
                       {matchup.competitor2 ? (
                         <div>
@@ -787,6 +846,11 @@ function MatchupsTab({
                           <div className="text-2xl font-bold text-[#FF9E18]">
                             {matchup.competitor2Votes} <span className="text-sm text-gray-400">votes</span>
                           </div>
+                          {!matchup.winner && (
+                            <div className="text-xs text-gray-500 mt-2">
+                              ← Click to declare winner
+                            </div>
+                          )}
                         </div>
                       ) : (
                         <span className="text-gray-500">TBD</span>
