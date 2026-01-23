@@ -1,0 +1,41 @@
+import { NextRequest } from 'next/server';
+import prisma from './db';
+
+export type AuditAction = 
+  | 'CAMPAIGN_CREATED'
+  | 'CAMPAIGN_UPDATED'
+  | 'CAMPAIGN_DELETED'
+  | 'CAMPAIGN_ACTIVATED'
+  | 'ROUND_STARTED'
+  | 'ROUND_COMPLETED'
+  | 'MATCHUP_WINNER_SET'
+  | 'COMPETITOR_CREATED'
+  | 'COMPETITOR_UPDATED'
+  | 'COMPETITOR_ELIMINATED'
+  | 'VOTE_SUBMITTED'
+  | 'VOTE_SOURCE_CREATED'
+  | 'CONFIG_UPDATED';
+
+export async function logAudit(
+  action: AuditAction,
+  entityType: string,
+  entityId: string,
+  details?: Record<string, unknown>,
+  request?: NextRequest
+) {
+  try {
+    await prisma.auditLog.create({
+      data: {
+        action,
+        entityType,
+        entityId,
+        details: details ? details : undefined,
+        ipAddress: request?.headers.get('x-forwarded-for') || request?.headers.get('x-real-ip') || null,
+        userAgent: request?.headers.get('user-agent') || null,
+      },
+    });
+  } catch (error) {
+    // Don't fail the main operation if audit logging fails
+    console.error('Failed to log audit:', error);
+  }
+}

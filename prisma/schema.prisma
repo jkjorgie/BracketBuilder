@@ -1,0 +1,240 @@
+// Prisma schema for GT eForms Feature Face Off
+// Learn more: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ============================================================================
+// SITE CONFIGURATION
+// ============================================================================
+
+// Global site settings that can be customized per deployment
+model SiteConfig {
+  id          String   @id @default(cuid())
+  siteName    String   @default("GT eForms Feature Face Off")
+  eventName   String   @default("Alliance 2026")
+  copyright   String   @default("Jay Jorgensen")
+  description String?  @db.Text
+  logoUrl     String?
+  primaryColor   String @default("#FF9E18")
+  secondaryColor String @default("#00B2E3")
+  textColor      String @default("#231F20")
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// ============================================================================
+// CAMPAIGN MANAGEMENT
+// ============================================================================
+
+// A campaign represents a single bracket competition (can be demo or live)
+model Campaign {
+  id          String   @id @default(cuid())
+  name        String
+  description String?  @db.Text
+  slug        String   @unique // URL-friendly identifier
+  
+  // Campaign mode
+  isDemo      Boolean  @default(false) // Demo campaigns don't count for real
+  isActive    Boolean  @default(false) // Only one campaign can be active at a time
+  
+  // Timing
+  startDate   DateTime?
+  endDate     DateTime?
+  currentRound Int     @default(1)
+  
+  // Relationships
+  competitors Competitor[]
+  matchups    Matchup[]
+  rounds      Round[]
+  votes       Vote[]
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([slug])
+  @@index([isActive])
+}
+
+// ============================================================================
+// COMPETITORS (Features being voted on)
+// ============================================================================
+
+model Competitor {
+  id          String   @id @default(cuid())
+  name        String
+  description String   @db.Text
+  imageUrl    String?
+  seed        Int?     // Seeding for bracket placement
+  
+  // Campaign relationship
+  campaignId  String
+  campaign    Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  
+  // Track wins/losses
+  isEliminated Boolean @default(false)
+  eliminatedInRound Int?
+  
+  // Matchup relationships
+  matchupsAsCompetitor1 Matchup[] @relation("Competitor1")
+  matchupsAsCompetitor2 Matchup[] @relation("Competitor2")
+  matchupsWon           Matchup[] @relation("Winner")
+  votes                 Vote[]
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([campaignId])
+}
+
+// ============================================================================
+// ROUNDS & MATCHUPS
+// ============================================================================
+
+model Round {
+  id          String   @id @default(cuid())
+  roundNumber Int
+  name        String   // e.g., "Quarterfinals", "Semifinals", "Finals"
+  
+  // Campaign relationship
+  campaignId  String
+  campaign    Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  
+  // Status
+  isActive    Boolean  @default(false)
+  isComplete  Boolean  @default(false)
+  
+  // Timing
+  startDate   DateTime?
+  endDate     DateTime?
+  
+  // Relationships
+  matchups    Matchup[]
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([campaignId, roundNumber])
+  @@index([campaignId])
+}
+
+model Matchup {
+  id           String   @id @default(cuid())
+  matchupIndex Int      // Position within the round (0-indexed)
+  
+  // Round relationship
+  roundId      String
+  round        Round    @relation(fields: [roundId], references: [id], onDelete: Cascade)
+  
+  // Campaign relationship (denormalized for easier queries)
+  campaignId   String
+  campaign     Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  
+  // Competitors
+  competitor1Id String?
+  competitor1   Competitor? @relation("Competitor1", fields: [competitor1Id], references: [id])
+  
+  competitor2Id String?
+  competitor2   Competitor? @relation("Competitor2", fields: [competitor2Id], references: [id])
+  
+  // Result
+  winnerId     String?
+  winner       Competitor? @relation("Winner", fields: [winnerId], references: [id])
+  
+  // Vote counts (cached for performance)
+  competitor1Votes Int @default(0)
+  competitor2Votes Int @default(0)
+  
+  // Relationships
+  votes        Vote[]
+  
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([roundId])
+  @@index([campaignId])
+}
+
+// ============================================================================
+// VOTING
+// ============================================================================
+
+model Vote {
+  id           String   @id @default(cuid())
+  
+  // What was voted on
+  matchupId    String
+  matchup      Matchup  @relation(fields: [matchupId], references: [id], onDelete: Cascade)
+  
+  competitorId String
+  competitor   Competitor @relation(fields: [competitorId], references: [id], onDelete: Cascade)
+  
+  // Campaign (denormalized)
+  campaignId   String
+  campaign     Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  
+  // Voter information
+  voterName    String
+  voterEmail   String
+  
+  // Source tracking (booth, session, etc.)
+  source       String   @default("direct")
+  
+  // Prevent duplicate votes
+  sessionId    String?  // Browser session identifier
+  
+  createdAt    DateTime @default(now())
+
+  // Prevent same person voting twice on same matchup from same source
+  @@unique([matchupId, voterEmail, source])
+  @@index([matchupId])
+  @@index([campaignId])
+  @@index([voterEmail])
+}
+
+// ============================================================================
+// VOTE SOURCES (Track where votes come from)
+// ============================================================================
+
+model VoteSource {
+  id          String   @id @default(cuid())
+  code        String   @unique // e.g., "boothday1", "sessionA"
+  name        String   // Display name e.g., "Booth - Day 1"
+  description String?
+  
+  // Validity period
+  validFrom   DateTime?
+  validUntil  DateTime?
+  
+  isActive    Boolean  @default(true)
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([code])
+}
+
+// ============================================================================
+// ADMIN AUDIT LOG
+// ============================================================================
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  action    String   // e.g., "CAMPAIGN_CREATED", "ROUND_COMPLETED", "WINNER_SET"
+  entityType String  // e.g., "Campaign", "Matchup", "Vote"
+  entityId  String
+  details   Json?    // Additional context
+  ipAddress String?
+  userAgent String?
+  
+  createdAt DateTime @default(now())
+
+  @@index([entityType, entityId])
+  @@index([createdAt])
+}
