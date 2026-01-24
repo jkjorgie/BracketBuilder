@@ -544,6 +544,7 @@ function VotePageContent() {
         isOpen={showSuccess}
         onClose={() => setShowSuccess(false)}
         roundName={activeRound.name}
+        campaignSlug={campaignSlug}
       />
     </>
   );

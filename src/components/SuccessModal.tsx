@@ -6,9 +6,10 @@ interface SuccessModalProps {
   isOpen: boolean;
   onClose: () => void;
   roundName: string;
+  campaignSlug?: string;
 }
 
-export function SuccessModal({ isOpen, onClose, roundName }: SuccessModalProps) {
+export function SuccessModal({ isOpen, onClose, roundName, campaignSlug }: SuccessModalProps) {
   const modalRef = useRef<HTMLDivElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
 
@@ -124,7 +125,7 @@ export function SuccessModal({ isOpen, onClose, roundName }: SuccessModalProps) 
             Continue
           </button>
           <a
-            href="/results"
+            href={campaignSlug ? `/${campaignSlug}/results` : '/results'}
             className="btn btn-outline w-full text-center"
           >
             View Current Results
