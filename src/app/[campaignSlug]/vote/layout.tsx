@@ -1,8 +1,8 @@
 import { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: 'Vote - GT eForms Feature Face Off',
-  description: 'Cast your vote for your favorite GT eForms features at Alliance 2026.',
+  title: 'Vote - Feature Face Off',
+  description: 'Cast your vote for your favorite features!',
 };
 
 export default function VoteLayout({

@@ -64,7 +64,7 @@ interface VoteSource {
   isActive: boolean;
 }
 
-type Tab = 'campaigns' | 'rounds' | 'matchups' | 'sources' | 'submissions';
+type Tab = 'campaigns' | 'rounds' | 'matchups' | 'competitors' | 'sources' | 'submissions';
 
 export default function AdminPage() {
   const [user, setUser] = useState<User | null>(null);
@@ -452,6 +452,7 @@ export default function AdminPage() {
               { id: 'campaigns', label: '📋 Campaigns' },
               { id: 'rounds', label: '📅 Rounds' },
               { id: 'matchups', label: '⚔️ Matchups' },
+              { id: 'competitors', label: '👥 Competitors' },
               { id: 'sources', label: '🔗 Vote Sources' },
               { id: 'submissions', label: '📊 Submissions' },
             ].map((tab) => (
@@ -509,12 +510,22 @@ export default function AdminPage() {
               />
             )}
 
+            {/* Competitors Tab */}
+            {activeTab === 'competitors' && selectedCampaign && (
+              <CompetitorsTab
+                campaign={selectedCampaign}
+                onRefresh={fetchCampaigns}
+                showMessage={showMessage}
+              />
+            )}
+
             {/* Vote Sources Tab */}
             {activeTab === 'sources' && (
               <VoteSourcesTab
                 sources={voteSources}
                 onToggle={handleToggleVoteSource}
                 onRefresh={fetchVoteSources}
+                showMessage={showMessage}
               />
             )}
 
@@ -526,7 +537,7 @@ export default function AdminPage() {
               />
             )}
 
-            {(activeTab === 'rounds' || activeTab === 'matchups') && !selectedCampaign && (
+            {(activeTab === 'rounds' || activeTab === 'matchups' || activeTab === 'competitors') && !selectedCampaign && (
               <div className="text-center py-12">
                 <p className="text-gray-400">Select a campaign first from the Campaigns tab</p>
               </div>
@@ -552,17 +563,200 @@ function CampaignsTab({
   onToggleActive: (c: Campaign) => void;
   onRefresh: () => void;
 }) {
+  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [editingCampaign, setEditingCampaign] = useState<Campaign | null>(null);
+  const [formData, setFormData] = useState({
+    name: '',
+    slug: '',
+    description: '',
+    isDemo: false,
+    startDate: '',
+    endDate: '',
+  });
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  const resetForm = () => {
+    setFormData({ name: '', slug: '', description: '', isDemo: false, startDate: '', endDate: '' });
+    setShowCreateForm(false);
+    setEditingCampaign(null);
+    setError('');
+  };
+
+  const handleEdit = (campaign: Campaign, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setEditingCampaign(campaign);
+    setFormData({
+      name: campaign.name,
+      slug: campaign.slug,
+      description: campaign.description || '',
+      isDemo: campaign.isDemo,
+      startDate: campaign.startDate ? campaign.startDate.slice(0, 16) : '',
+      endDate: campaign.endDate ? campaign.endDate.slice(0, 16) : '',
+    });
+    setShowCreateForm(true);
+  };
+
+  const handleDelete = async (campaign: Campaign, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!confirm(`Are you sure you want to delete "${campaign.name}"? This will delete all associated data.`)) return;
+    
+    try {
+      const res = await fetch(`/api/campaigns/${campaign.slug}`, { method: 'DELETE' });
+      if (res.ok) {
+        onRefresh();
+      } else {
+        const data = await res.json();
+        alert(data.error || 'Failed to delete campaign');
+      }
+    } catch {
+      alert('Failed to delete campaign');
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSaving(true);
+    setError('');
+
+    try {
+      const url = editingCampaign 
+        ? `/api/campaigns/${editingCampaign.slug}`
+        : '/api/admin/campaigns';
+      const method = editingCampaign ? 'PATCH' : 'POST';
+      
+      const res = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...formData,
+          startDate: formData.startDate || null,
+          endDate: formData.endDate || null,
+        }),
+      });
+
+      if (res.ok) {
+        resetForm();
+        onRefresh();
+      } else {
+        const data = await res.json();
+        setError(data.error || 'Failed to save campaign');
+      }
+    } catch {
+      setError('Failed to save campaign');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h2 className="text-xl font-semibold text-white">All Campaigns</h2>
-        <button
-          onClick={onRefresh}
-          className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg text-sm"
-        >
-          🔄 Refresh
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={() => { resetForm(); setShowCreateForm(true); }}
+            className="px-4 py-2 bg-[#FF9E18] hover:bg-[#e88f15] text-white rounded-lg text-sm font-medium"
+          >
+            + New Campaign
+          </button>
+          <button
+            onClick={onRefresh}
+            className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg text-sm"
+          >
+            🔄 Refresh
+          </button>
+        </div>
       </div>
+
+      {/* Create/Edit Form Modal */}
+      {showCreateForm && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={resetForm}>
+          <div className="bg-gray-800 rounded-xl p-6 max-w-md w-full mx-4 border border-gray-700" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-lg font-semibold text-white mb-4">
+              {editingCampaign ? 'Edit Campaign' : 'Create New Campaign'}
+            </h3>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div>
+                <label className="block text-sm text-gray-400 mb-1">Name</label>
+                <input
+                  type="text"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white text-sm"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm text-gray-400 mb-1">Slug (URL-friendly)</label>
+                <input
+                  type="text"
+                  value={formData.slug}
+                  onChange={(e) => setFormData({ ...formData, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-') })}
+                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white text-sm"
+                  required
+                  disabled={!!editingCampaign}
+                />
+              </div>
+              <div>
+                <label className="block text-sm text-gray-400 mb-1">Description</label>
+                <textarea
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white text-sm"
+                  rows={3}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm text-gray-400 mb-1">Start Date</label>
+                  <input
+                    type="datetime-local"
+                    value={formData.startDate}
+                    onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
+                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm text-gray-400 mb-1">End Date</label>
+                  <input
+                    type="datetime-local"
+                    value={formData.endDate}
+                    onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
+                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white text-sm"
+                  />
+                </div>
+              </div>
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={formData.isDemo}
+                  onChange={(e) => setFormData({ ...formData, isDemo: e.target.checked })}
+                  className="rounded bg-gray-700 border-gray-600"
+                />
+                <span className="text-sm text-gray-300">Demo campaign</span>
+              </label>
+              {error && <p className="text-red-400 text-sm">{error}</p>}
+              <div className="flex gap-3 justify-end pt-2">
+                <button
+                  type="button"
+                  onClick={resetForm}
+                  className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg text-sm"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={saving}
+                  className="px-4 py-2 bg-[#FF9E18] hover:bg-[#e88f15] text-white rounded-lg text-sm font-medium disabled:opacity-50"
+                >
+                  {saving ? 'Saving...' : (editingCampaign ? 'Update' : 'Create')}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       <div className="grid gap-4">
         {campaigns.map((campaign) => (
@@ -597,13 +791,22 @@ function CampaignsTab({
                   <span>👥 Competitors: {campaign.competitors.length}</span>
                   <span>📅 Rounds: {campaign.rounds.length}</span>
                 </div>
+                <p className="text-gray-500 text-sm mt-2">
+                  🔗 URL: <code className="text-[#00B2E3]">/{campaign.slug}</code>
+                </p>
                 {campaign.startDate && campaign.endDate && (
-                  <p className="text-gray-500 text-sm mt-2">
+                  <p className="text-gray-500 text-sm mt-1">
                     📆 {formatDate(campaign.startDate)} → {formatDate(campaign.endDate)}
                   </p>
                 )}
               </div>
               <div className="flex flex-col gap-2">
+                <button
+                  onClick={(e) => handleEdit(campaign, e)}
+                  className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg text-sm"
+                >
+                  ✏️ Edit
+                </button>
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
@@ -617,6 +820,12 @@ function CampaignsTab({
                 >
                   {campaign.isActive ? 'Deactivate' : 'Activate'}
                 </button>
+                <button
+                  onClick={(e) => handleDelete(campaign, e)}
+                  className="px-4 py-2 bg-red-500/20 text-red-400 hover:bg-red-500/30 rounded-lg text-sm"
+                >
+                  🗑️ Delete
+                </button>
               </div>
             </div>
           </div>
@@ -624,7 +833,7 @@ function CampaignsTab({
 
         {campaigns.length === 0 && (
           <div className="text-center py-12 text-gray-400">
-            No campaigns found. Create one using the API or seed script.
+            No campaigns found. Click &quot;New Campaign&quot; to create one.
           </div>
         )}
       </div>
@@ -904,11 +1113,93 @@ function VoteSourcesTab({
   sources,
   onToggle,
   onRefresh,
+  showMessage,
 }: {
   sources: VoteSource[];
   onToggle: (source: VoteSource) => void;
   onRefresh: () => void;
+  showMessage: (type: 'success' | 'error', text: string) => void;
 }) {
+  const [showForm, setShowForm] = useState(false);
+  const [editing, setEditing] = useState<VoteSource | null>(null);
+  const [formData, setFormData] = useState({
+    code: '',
+    name: '',
+    description: '',
+    validFrom: '',
+    validUntil: '',
+  });
+  const [saving, setSaving] = useState(false);
+
+  const resetForm = () => {
+    setFormData({ code: '', name: '', description: '', validFrom: '', validUntil: '' });
+    setShowForm(false);
+    setEditing(null);
+  };
+
+  const handleEdit = (source: VoteSource) => {
+    setEditing(source);
+    setFormData({
+      code: source.code,
+      name: source.name,
+      description: source.description || '',
+      validFrom: source.validFrom ? source.validFrom.slice(0, 16) : '',
+      validUntil: source.validUntil ? source.validUntil.slice(0, 16) : '',
+    });
+    setShowForm(true);
+  };
+
+  const handleDelete = async (source: VoteSource) => {
+    if (!confirm(`Delete vote source "${source.name}"?`)) return;
+    
+    try {
+      const res = await fetch(`/api/admin/vote-sources?id=${source.id}`, { method: 'DELETE' });
+      if (res.ok) {
+        showMessage('success', 'Vote source deleted');
+        onRefresh();
+      } else {
+        showMessage('error', 'Failed to delete vote source');
+      }
+    } catch {
+      showMessage('error', 'Failed to delete vote source');
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSaving(true);
+
+    try {
+      const method = editing ? 'PUT' : 'POST';
+      const body = editing 
+        ? { id: editing.id, ...formData }
+        : formData;
+      
+      const res = await fetch('/api/admin/vote-sources', {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...body,
+          validFrom: formData.validFrom || null,
+          validUntil: formData.validUntil || null,
+        }),
+      });
+
+      if (res.ok) {
+        showMessage('success', `Vote source ${editing ? 'updated' : 'created'}`);
+        resetForm();
+        onRefresh();
+      } else {
+        const data = await res.json();
+        showMessage('error', data.error || 'Failed to save');
+      }
+    } catch {
+      showMessage('error', 'Failed to save vote source');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -916,13 +1207,103 @@ function VoteSourcesTab({
           <h2 className="text-xl font-semibold text-white">Vote Sources</h2>
           <p className="text-gray-400 text-sm">Manage voting link sources</p>
         </div>
-        <button
-          onClick={onRefresh}
-          className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg text-sm"
-        >
-          🔄 Refresh
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={() => { resetForm(); setShowForm(true); }}
+            className="px-4 py-2 bg-[#FF9E18] hover:bg-[#e88f15] text-white rounded-lg text-sm font-medium"
+          >
+            + New Source
+          </button>
+          <button
+            onClick={onRefresh}
+            className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg text-sm"
+          >
+            🔄 Refresh
+          </button>
+        </div>
       </div>
+
+      {/* Create/Edit Form Modal */}
+      {showForm && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={resetForm}>
+          <div className="bg-gray-800 rounded-xl p-6 max-w-md w-full mx-4 border border-gray-700" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-lg font-semibold text-white mb-4">
+              {editing ? 'Edit Vote Source' : 'Create Vote Source'}
+            </h3>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div>
+                <label className="block text-sm text-gray-400 mb-1">Code (URL parameter)</label>
+                <input
+                  type="text"
+                  value={formData.code}
+                  onChange={(e) => setFormData({ ...formData, code: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-') })}
+                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white text-sm"
+                  required
+                  disabled={!!editing}
+                  placeholder="booth-day1"
+                />
+              </div>
+              <div>
+                <label className="block text-sm text-gray-400 mb-1">Name</label>
+                <input
+                  type="text"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white text-sm"
+                  required
+                  placeholder="Booth Day 1"
+                />
+              </div>
+              <div>
+                <label className="block text-sm text-gray-400 mb-1">Description</label>
+                <input
+                  type="text"
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white text-sm"
+                  placeholder="Optional description"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm text-gray-400 mb-1">Valid From</label>
+                  <input
+                    type="datetime-local"
+                    value={formData.validFrom}
+                    onChange={(e) => setFormData({ ...formData, validFrom: e.target.value })}
+                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm text-gray-400 mb-1">Valid Until</label>
+                  <input
+                    type="datetime-local"
+                    value={formData.validUntil}
+                    onChange={(e) => setFormData({ ...formData, validUntil: e.target.value })}
+                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white text-sm"
+                  />
+                </div>
+              </div>
+              <div className="flex gap-3 justify-end pt-2">
+                <button
+                  type="button"
+                  onClick={resetForm}
+                  className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg text-sm"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={saving}
+                  className="px-4 py-2 bg-[#FF9E18] hover:bg-[#e88f15] text-white rounded-lg text-sm font-medium disabled:opacity-50"
+                >
+                  {saving ? 'Saving...' : (editing ? 'Update' : 'Create')}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       <div className="overflow-x-auto">
         <table className="w-full">
@@ -963,16 +1344,30 @@ function VoteSourcesTab({
                   </span>
                 </td>
                 <td className="py-3">
-                  <button
-                    onClick={() => onToggle(source)}
-                    className={`px-3 py-1 rounded text-sm ${
-                      source.isActive
-                        ? 'bg-red-500/20 text-red-400 hover:bg-red-500/30'
-                        : 'bg-green-500/20 text-green-400 hover:bg-green-500/30'
-                    }`}
-                  >
-                    {source.isActive ? 'Disable' : 'Enable'}
-                  </button>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handleEdit(source)}
+                      className="px-3 py-1 rounded text-sm bg-gray-700 hover:bg-gray-600 text-white"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      onClick={() => onToggle(source)}
+                      className={`px-3 py-1 rounded text-sm ${
+                        source.isActive
+                          ? 'bg-red-500/20 text-red-400 hover:bg-red-500/30'
+                          : 'bg-green-500/20 text-green-400 hover:bg-green-500/30'
+                      }`}
+                    >
+                      {source.isActive ? 'Disable' : 'Enable'}
+                    </button>
+                    <button
+                      onClick={() => handleDelete(source)}
+                      className="px-3 py-1 rounded text-sm bg-red-500/20 text-red-400 hover:bg-red-500/30"
+                    >
+                      Delete
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}
@@ -983,15 +1378,232 @@ function VoteSourcesTab({
       {/* URL Reference */}
       <div className="bg-gray-800 rounded-xl p-6 border border-gray-700">
         <h3 className="text-lg font-semibold text-white mb-4">📋 Quick Reference - Vote URLs</h3>
+        <p className="text-gray-400 text-sm mb-4">Use these URLs with your campaign slug:</p>
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-2 font-mono text-sm">
           {sources.filter((s) => s.isActive).map((source) => (
             <div key={source.id} className="flex items-center gap-2">
               <span className={`w-2 h-2 rounded-full ${source.isActive ? 'bg-green-400' : 'bg-red-400'}`} />
-              <code className="text-gray-300">/vote?source={source.code}</code>
+              <code className="text-gray-300">/[campaign]/vote?source={source.code}</code>
             </div>
           ))}
         </div>
       </div>
+    </div>
+  );
+}
+
+// Competitors Tab Component
+function CompetitorsTab({
+  campaign,
+  onRefresh,
+  showMessage,
+}: {
+  campaign: Campaign;
+  onRefresh: () => void;
+  showMessage: (type: 'success' | 'error', text: string) => void;
+}) {
+  const [showForm, setShowForm] = useState(false);
+  const [editing, setEditing] = useState<Competitor | null>(null);
+  const [formData, setFormData] = useState({
+    name: '',
+    description: '',
+    seed: '',
+    imageUrl: '',
+  });
+  const [saving, setSaving] = useState(false);
+
+  const resetForm = () => {
+    setFormData({ name: '', description: '', seed: '', imageUrl: '' });
+    setShowForm(false);
+    setEditing(null);
+  };
+
+  const handleEdit = (competitor: Competitor) => {
+    setEditing(competitor);
+    setFormData({
+      name: competitor.name,
+      description: competitor.description,
+      seed: competitor.seed?.toString() || '',
+      imageUrl: '',
+    });
+    setShowForm(true);
+  };
+
+  const handleDelete = async (competitor: Competitor) => {
+    if (!confirm(`Delete "${competitor.name}"? This may fail if the competitor is part of active matchups.`)) return;
+    
+    try {
+      const res = await fetch(`/api/admin/competitors?id=${competitor.id}`, { method: 'DELETE' });
+      if (res.ok) {
+        showMessage('success', 'Competitor deleted');
+        onRefresh();
+      } else {
+        const data = await res.json();
+        showMessage('error', data.error || 'Failed to delete competitor');
+      }
+    } catch {
+      showMessage('error', 'Failed to delete competitor');
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSaving(true);
+
+    try {
+      const method = editing ? 'PUT' : 'POST';
+      const body = editing 
+        ? { id: editing.id, ...formData, seed: formData.seed ? parseInt(formData.seed) : null }
+        : { campaignId: campaign.id, ...formData, seed: formData.seed ? parseInt(formData.seed) : null };
+      
+      const res = await fetch('/api/admin/competitors', {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+
+      if (res.ok) {
+        showMessage('success', `Competitor ${editing ? 'updated' : 'created'}`);
+        resetForm();
+        onRefresh();
+      } else {
+        const data = await res.json();
+        showMessage('error', data.error || 'Failed to save');
+      }
+    } catch {
+      showMessage('error', 'Failed to save competitor');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <div>
+          <h2 className="text-xl font-semibold text-white">Competitors for: {campaign.name}</h2>
+          <p className="text-gray-400 text-sm">Manage competitors (product features) in this campaign</p>
+        </div>
+        <div className="flex gap-2">
+          <button
+            onClick={() => { resetForm(); setShowForm(true); }}
+            className="px-4 py-2 bg-[#FF9E18] hover:bg-[#e88f15] text-white rounded-lg text-sm font-medium"
+          >
+            + Add Competitor
+          </button>
+        </div>
+      </div>
+
+      {/* Create/Edit Form Modal */}
+      {showForm && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={resetForm}>
+          <div className="bg-gray-800 rounded-xl p-6 max-w-md w-full mx-4 border border-gray-700" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-lg font-semibold text-white mb-4">
+              {editing ? 'Edit Competitor' : 'Add Competitor'}
+            </h3>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div>
+                <label className="block text-sm text-gray-400 mb-1">Name</label>
+                <input
+                  type="text"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white text-sm"
+                  required
+                  placeholder="Feature name"
+                />
+              </div>
+              <div>
+                <label className="block text-sm text-gray-400 mb-1">Description</label>
+                <textarea
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white text-sm"
+                  rows={3}
+                  required
+                  placeholder="Describe this feature"
+                />
+              </div>
+              <div>
+                <label className="block text-sm text-gray-400 mb-1">Seed Number</label>
+                <input
+                  type="number"
+                  value={formData.seed}
+                  onChange={(e) => setFormData({ ...formData, seed: e.target.value })}
+                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white text-sm"
+                  min="1"
+                  placeholder="1, 2, 3..."
+                />
+              </div>
+              <div className="flex gap-3 justify-end pt-2">
+                <button
+                  type="button"
+                  onClick={resetForm}
+                  className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg text-sm"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={saving}
+                  className="px-4 py-2 bg-[#FF9E18] hover:bg-[#e88f15] text-white rounded-lg text-sm font-medium disabled:opacity-50"
+                >
+                  {saving ? 'Saving...' : (editing ? 'Update' : 'Create')}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Competitors Grid */}
+      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        {campaign.competitors.map((competitor) => (
+          <div
+            key={competitor.id}
+            className={`bg-gray-800 rounded-xl p-4 border ${
+              competitor.isEliminated ? 'border-red-500/30 opacity-60' : 'border-gray-700'
+            }`}
+          >
+            <div className="flex items-start justify-between gap-2 mb-2">
+              <div className="flex items-center gap-2">
+                {competitor.seed && (
+                  <span className="inline-flex items-center justify-center w-7 h-7 text-xs font-bold bg-[#00B2E3] text-white rounded-full">
+                    #{competitor.seed}
+                  </span>
+                )}
+                <h3 className="font-semibold text-white">{competitor.name}</h3>
+              </div>
+              {competitor.isEliminated && (
+                <span className="px-2 py-0.5 bg-red-500/20 text-red-400 text-xs rounded-full">
+                  Eliminated
+                </span>
+              )}
+            </div>
+            <p className="text-gray-400 text-sm mb-4 line-clamp-3">{competitor.description}</p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => handleEdit(competitor)}
+                className="flex-1 px-3 py-1.5 bg-gray-700 hover:bg-gray-600 text-white rounded text-sm"
+              >
+                Edit
+              </button>
+              <button
+                onClick={() => handleDelete(competitor)}
+                className="px-3 py-1.5 bg-red-500/20 text-red-400 hover:bg-red-500/30 rounded text-sm"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {campaign.competitors.length === 0 && (
+        <div className="text-center py-12 text-gray-400">
+          No competitors in this campaign. Click &quot;Add Competitor&quot; to create one.
+        </div>
+      )}
     </div>
   );
 }
@@ -1006,6 +1618,7 @@ function SubmissionsTab({
 }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterSource, setFilterSource] = useState('all');
+  const [filterCampaign, setFilterCampaign] = useState('all');
 
   if (!submissions) {
     return (
@@ -1026,12 +1639,16 @@ function SubmissionsTab({
       vote.voterEmail.toLowerCase().includes(searchTerm.toLowerCase());
     
     const matchesSource = filterSource === 'all' || vote.source === filterSource;
+    const matchesCampaign = filterCampaign === 'all' || vote.campaign.slug === filterCampaign;
     
-    return matchesSearch && matchesSource;
+    return matchesSearch && matchesSource && matchesCampaign;
   });
 
-  // Get unique sources for filter
+  // Get unique sources and campaigns for filter
   const uniqueSources = Array.from(new Set(votes.map((v: any) => v.source))).sort();
+  const uniqueCampaigns = Array.from(
+    new Map(votes.map((v: any) => [v.campaign.slug, { slug: v.campaign.slug, name: v.campaign.name }])).values()
+  );
 
   return (
     <div className="space-y-6">
@@ -1068,7 +1685,7 @@ function SubmissionsTab({
 
       {/* Filters */}
       <div className="bg-gray-800 rounded-xl p-4 border border-gray-700">
-        <div className="grid sm:grid-cols-2 gap-4">
+        <div className="grid sm:grid-cols-3 gap-4">
           <div>
             <label className="block text-sm text-gray-400 mb-2">Search by Name or Email</label>
             <input
@@ -1078,6 +1695,19 @@ function SubmissionsTab({
               placeholder="Search..."
               className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-[#FF9E18]"
             />
+          </div>
+          <div>
+            <label className="block text-sm text-gray-400 mb-2">Filter by Campaign</label>
+            <select
+              value={filterCampaign}
+              onChange={(e) => setFilterCampaign(e.target.value)}
+              className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-[#FF9E18]"
+            >
+              <option value="all">All Campaigns</option>
+              {uniqueCampaigns.map((c: any) => (
+                <option key={c.slug} value={c.slug}>{c.name}</option>
+              ))}
+            </select>
           </div>
           <div>
             <label className="block text-sm text-gray-400 mb-2">Filter by Source</label>

@@ -7,7 +7,7 @@ type RouteContext = {
   params: Promise<{ slug: string }>;
 };
 
-// GET /api/campaigns/[slug] - Get a specific campaign
+// GET /api/campaigns/[slug] - Get a specific campaign with all data needed for voting/results
 export async function GET(request: NextRequest, context: RouteContext) {
   try {
     const { slug } = await context.params;
@@ -31,6 +31,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
           },
           orderBy: { roundNumber: 'asc' },
         },
+        votes: true,
       },
     });
 
@@ -41,7 +42,112 @@ export async function GET(request: NextRequest, context: RouteContext) {
       );
     }
 
-    return NextResponse.json(campaign);
+    // Get site configuration
+    const siteConfig = await prisma.siteConfig.findFirst({
+      where: { isActive: true },
+    });
+
+    // Find eliminated competitors (those who lost in completed rounds)
+    const eliminatedIds = new Set<string>();
+    for (const round of campaign.rounds) {
+      if (round.isComplete) {
+        for (const matchup of round.matchups) {
+          if (matchup.winnerId) {
+            // The loser is the one who isn't the winner
+            if (matchup.competitor1Id && matchup.competitor1Id !== matchup.winnerId) {
+              eliminatedIds.add(matchup.competitor1Id);
+            }
+            if (matchup.competitor2Id && matchup.competitor2Id !== matchup.winnerId) {
+              eliminatedIds.add(matchup.competitor2Id);
+            }
+          }
+        }
+      }
+    }
+
+    // Calculate statistics
+    const votesBySource = campaign.votes.reduce((acc, vote) => {
+      acc[vote.source] = (acc[vote.source] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+
+    const uniqueVoters = new Set(campaign.votes.map(v => v.voterEmail)).size;
+
+    // Transform to frontend-friendly format
+    const response = {
+      campaign: {
+        id: campaign.id,
+        slug: campaign.slug,
+        name: campaign.name,
+        description: campaign.description,
+        currentRound: campaign.currentRound,
+        isDemo: campaign.isDemo,
+      },
+      siteConfig: siteConfig ? {
+        siteName: siteConfig.siteName,
+        eventName: siteConfig.eventName,
+        description: siteConfig.description,
+      } : null,
+      rounds: campaign.rounds.map((round) => ({
+        roundNumber: round.roundNumber,
+        name: round.name,
+        isActive: round.isActive,
+        isComplete: round.isComplete,
+        startDate: round.startDate?.toISOString(),
+        endDate: round.endDate?.toISOString(),
+        matchups: round.matchups.map((matchup) => ({
+          id: matchup.id,
+          matchupIndex: matchup.matchupIndex,
+          roundNumber: round.roundNumber,
+          contestant1: matchup.competitor1 ? {
+            id: matchup.competitor1.id,
+            name: matchup.competitor1.name,
+            description: matchup.competitor1.description,
+            seed: matchup.competitor1.seed,
+            imageUrl: matchup.competitor1.imageUrl,
+          } : null,
+          contestant2: matchup.competitor2 ? {
+            id: matchup.competitor2.id,
+            name: matchup.competitor2.name,
+            description: matchup.competitor2.description,
+            seed: matchup.competitor2.seed,
+            imageUrl: matchup.competitor2.imageUrl,
+          } : null,
+          winner: matchup.winner ? {
+            id: matchup.winner.id,
+            name: matchup.winner.name,
+            description: matchup.winner.description,
+            seed: matchup.winner.seed,
+          } : null,
+          competitor1Votes: matchup.competitor1Votes,
+          competitor2Votes: matchup.competitor2Votes,
+        })),
+      })),
+      eliminatedCompetitorIds: Array.from(eliminatedIds),
+      statistics: {
+        totalVotes: campaign.votes.length,
+        uniqueVoters,
+        totalCompetitors: campaign.competitors.length,
+        votesBySource: Object.entries(votesBySource).map(([source, count]) => ({
+          source,
+          count,
+        })),
+      },
+      // Find champion if final round is complete
+      champion: (() => {
+        const finalRound = campaign.rounds.find((r) => r.roundNumber === campaign.rounds.length);
+        if (finalRound?.isComplete && finalRound.matchups[0]?.winner) {
+          return {
+            id: finalRound.matchups[0].winner.id,
+            name: finalRound.matchups[0].winner.name,
+            description: finalRound.matchups[0].winner.description,
+          };
+        }
+        return null;
+      })(),
+    };
+
+    return NextResponse.json(response);
   } catch (error) {
     console.error('Error fetching campaign:', error);
     return NextResponse.json(
