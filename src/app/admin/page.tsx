@@ -1675,7 +1675,8 @@ function SubmissionsTab({
   });
 
   // Get unique sources and campaigns for filter
-  const uniqueSources = Array.from(new Set(votes.map((v: any) => v.source))).sort();
+  const uniqueSources = [...new Set(votes.map((v: any) => v.source))] as string[];
+  uniqueSources.sort();
   const uniqueCampaigns = Array.from(
     new Map(votes.map((v: any) => [v.campaign.slug, { slug: v.campaign.slug, name: v.campaign.name }])).values()
   );
@@ -1747,7 +1748,7 @@ function SubmissionsTab({
               className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-[#FF9E18]"
             >
               <option value="all">All Sources</option>
-              {uniqueSources.map((source: string) => (
+              {uniqueSources.map((source) => (
                 <option key={source} value={source}>{source}</option>
               ))}
             </select>

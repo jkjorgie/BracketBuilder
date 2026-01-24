@@ -75,7 +75,7 @@ export function MatchupCard({
         isExpanded={expanded1}
         onToggle={() => setExpanded1(!expanded1)}
         isEliminated={eliminatedContestants.has(contestant1.id)}
-        needsExpansion={contestant1.description && contestant1.description.length > 100}
+        needsExpansion={!!(contestant1.description && contestant1.description.length > 100)}
         position="top"
       />
 
@@ -110,7 +110,7 @@ export function MatchupCard({
         isExpanded={expanded2}
         onToggle={() => setExpanded2(!expanded2)}
         isEliminated={eliminatedContestants.has(contestant2.id)}
-        needsExpansion={contestant2.description && contestant2.description.length > 100}
+        needsExpansion={!!(contestant2.description && contestant2.description.length > 100)}
         position="bottom"
       />
     </div>
