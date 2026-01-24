@@ -133,9 +133,12 @@ export default function AdminPage() {
     }
   }, []); // No dependencies - uses ref instead
 
-  const fetchVoteSources = useCallback(async () => {
+  const fetchVoteSources = useCallback(async (campaignId?: string) => {
     try {
-      const res = await fetch('/api/admin/vote-sources');
+      const url = campaignId 
+        ? `/api/admin/vote-sources?campaignId=${campaignId}`
+        : '/api/admin/vote-sources';
+      const res = await fetch(url);
       if (res.ok) {
         const data = await res.json();
         setVoteSources(data.sources);
@@ -176,6 +179,13 @@ export default function AdminPage() {
       fetchSubmissions();
     }
   }, [user, activeTab, submissions, fetchSubmissions]);
+
+  // Refetch vote sources when campaign changes or sources tab is selected
+  useEffect(() => {
+    if (user && activeTab === 'sources' && selectedCampaign) {
+      fetchVoteSources(selectedCampaign.id);
+    }
+  }, [user, activeTab, selectedCampaign, fetchVoteSources]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -523,8 +533,9 @@ export default function AdminPage() {
             {activeTab === 'sources' && (
               <VoteSourcesTab
                 sources={voteSources}
+                selectedCampaign={selectedCampaign}
                 onToggle={handleToggleVoteSource}
-                onRefresh={fetchVoteSources}
+                onRefresh={() => fetchVoteSources(selectedCampaign?.id)}
                 showMessage={showMessage}
               />
             )}
@@ -1111,11 +1122,13 @@ function MatchupsTab({
 // Vote Sources Tab Component
 function VoteSourcesTab({
   sources,
+  selectedCampaign,
   onToggle,
   onRefresh,
   showMessage,
 }: {
   sources: VoteSource[];
+  selectedCampaign: Campaign | null;
   onToggle: (source: VoteSource) => void;
   onRefresh: () => void;
   showMessage: (type: 'success' | 'error', text: string) => void;
@@ -1167,13 +1180,15 @@ function VoteSourcesTab({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!selectedCampaign) return;
+    
     setSaving(true);
 
     try {
       const method = editing ? 'PUT' : 'POST';
       const body = editing 
         ? { id: editing.id, ...formData }
-        : formData;
+        : { ...formData, campaignId: selectedCampaign.id };
       
       const res = await fetch('/api/admin/vote-sources', {
         method,
@@ -1200,12 +1215,27 @@ function VoteSourcesTab({
     }
   };
 
+  // Show message if no campaign selected
+  if (!selectedCampaign) {
+    return (
+      <div className="text-center py-12">
+        <div className="inline-flex items-center justify-center w-16 h-16 bg-gray-700 rounded-full mb-4">
+          <span className="text-2xl">🔗</span>
+        </div>
+        <h2 className="text-xl font-semibold text-white mb-2">Select a Campaign</h2>
+        <p className="text-gray-400 max-w-md mx-auto">
+          Vote sources are campaign-specific. Please select a campaign from the Campaigns tab first to manage its vote sources.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h2 className="text-xl font-semibold text-white">Vote Sources</h2>
-          <p className="text-gray-400 text-sm">Manage voting link sources</p>
+          <h2 className="text-xl font-semibold text-white">Vote Sources for: {selectedCampaign.name}</h2>
+          <p className="text-gray-400 text-sm">Manage voting link sources for this campaign</p>
         </div>
         <div className="flex gap-2">
           <button
@@ -1378,12 +1408,12 @@ function VoteSourcesTab({
       {/* URL Reference */}
       <div className="bg-gray-800 rounded-xl p-6 border border-gray-700">
         <h3 className="text-lg font-semibold text-white mb-4">📋 Quick Reference - Vote URLs</h3>
-        <p className="text-gray-400 text-sm mb-4">Use these URLs with your campaign slug:</p>
+        <p className="text-gray-400 text-sm mb-4">Vote URLs for {selectedCampaign.name}:</p>
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-2 font-mono text-sm">
           {sources.filter((s) => s.isActive).map((source) => (
             <div key={source.id} className="flex items-center gap-2">
               <span className={`w-2 h-2 rounded-full ${source.isActive ? 'bg-green-400' : 'bg-red-400'}`} />
-              <code className="text-gray-300">/[campaign]/vote?source={source.code}</code>
+              <code className="text-gray-300">/{selectedCampaign.slug}/vote?source={source.code}</code>
             </div>
           ))}
         </div>

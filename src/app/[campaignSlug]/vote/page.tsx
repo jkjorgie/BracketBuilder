@@ -70,7 +70,7 @@ function VotePageContent() {
     checkAdmin();
   }, []);
 
-  // Validate vote source
+  // Validate vote source - must belong to this campaign
   useEffect(() => {
     async function validateSource() {
       // Skip validation for 'direct' source
@@ -79,7 +79,8 @@ function VotePageContent() {
       }
 
       try {
-        const response = await fetch('/api/sources');
+        // Fetch sources for this specific campaign
+        const response = await fetch(`/api/sources?campaignSlug=${campaignSlug}`);
         if (!response.ok) {
           console.error('Failed to fetch sources');
           return;
@@ -89,8 +90,8 @@ function VotePageContent() {
         const voteSource = sources.find((s: any) => s.code === source);
         
         if (!voteSource) {
-          // Source doesn't exist - redirect to base vote page
-          console.log('Invalid source, redirecting to vote page');
+          // Source doesn't exist for this campaign - redirect to base vote page
+          console.log('Invalid source for this campaign, redirecting to vote page');
           window.location.href = `/${campaignSlug}/vote`;
           return;
         }

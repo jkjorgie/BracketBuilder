@@ -3,13 +3,37 @@ import prisma from '@/lib/db';
 import { requireAuth } from '@/lib/auth';
 import { logAudit } from '@/lib/audit';
 
-// GET /api/sources - Get all vote sources
+// GET /api/sources - Get vote sources, optionally filtered by campaign
 export async function GET(request: NextRequest) {
   try {
     const activeOnly = request.nextUrl.searchParams.get('active') === 'true';
+    const campaignSlug = request.nextUrl.searchParams.get('campaignSlug');
+
+    // Build where clause
+    const where: any = {};
+    
+    if (activeOnly) {
+      where.isActive = true;
+    }
+    
+    // Filter by campaign if slug provided
+    if (campaignSlug) {
+      const campaign = await prisma.campaign.findUnique({
+        where: { slug: campaignSlug },
+      });
+      
+      if (!campaign) {
+        return NextResponse.json(
+          { error: 'Campaign not found' },
+          { status: 404 }
+        );
+      }
+      
+      where.campaignId = campaign.id;
+    }
 
     const sources = await prisma.voteSource.findMany({
-      where: activeOnly ? { isActive: true } : undefined,
+      where: Object.keys(where).length > 0 ? where : undefined,
       orderBy: { createdAt: 'asc' },
     });
 
