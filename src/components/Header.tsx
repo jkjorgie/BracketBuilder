@@ -6,6 +6,30 @@ import { usePathname } from 'next/navigation';
 export function Header() {
   const pathname = usePathname();
 
+  // Extract campaign slug from pathname (e.g., /eforms-2026/vote -> eforms-2026)
+  const campaignMatch = pathname.match(/^\/([^\/]+)/);
+  const campaignSlug = campaignMatch?.[1];
+  
+  // Check if we're on a campaign page (not admin or root)
+  const reservedPaths = ['admin'];
+  const isOnCampaignPage = campaignSlug && !reservedPaths.includes(campaignSlug) && pathname !== '/';
+
+  // Build dynamic routes based on whether we're on a campaign page
+  const homeHref = isOnCampaignPage ? `/${campaignSlug}` : '/';
+  const voteHref = isOnCampaignPage ? `/${campaignSlug}/vote` : '/';
+  const resultsHref = isOnCampaignPage ? `/${campaignSlug}/results` : '/';
+
+  // Determine active states
+  const isHomeActive = isOnCampaignPage 
+    ? pathname === `/${campaignSlug}` 
+    : pathname === '/';
+  const isVoteActive = isOnCampaignPage 
+    ? pathname.startsWith(`/${campaignSlug}/vote`)
+    : false;
+  const isResultsActive = isOnCampaignPage 
+    ? pathname.startsWith(`/${campaignSlug}/results`)
+    : false;
+
   return (
     <>
       {/* Skip link for keyboard navigation - WCAG 2.1 AA */}
@@ -21,7 +45,7 @@ export function Header() {
           <div className="flex items-center justify-between h-16 md:h-20">
             {/* Logo */}
             <Link
-              href="/"
+              href={homeHref}
               className="flex items-center gap-2 text-xl font-bold text-text hover:text-primary transition-colors"
               aria-label="GT eForms Feature Face Off - Home"
             >
@@ -76,32 +100,38 @@ export function Header() {
               <span className="hidden sm:inline">GT eForms Feature Face Off</span>
             </Link>
 
-            {/* Navigation */}
-            <nav aria-label="Main navigation">
-              <ul className="flex items-center gap-1 sm:gap-2">
-                <li>
-                  <NavLink href="/" isActive={pathname === '/'}>
-                    Home
-                  </NavLink>
-                </li>
-                <li>
-                  <NavLink
-                    href="/vote"
-                    isActive={pathname.startsWith('/vote')}
-                  >
-                    Vote
-                  </NavLink>
-                </li>
-                <li>
-                  <NavLink
-                    href="/results"
-                    isActive={pathname.startsWith('/results')}
-                  >
-                    Results
-                  </NavLink>
-                </li>
-              </ul>
-            </nav>
+            {/* Navigation - only show campaign links when on a campaign page */}
+            {isOnCampaignPage ? (
+              <nav aria-label="Main navigation">
+                <ul className="flex items-center gap-1 sm:gap-2">
+                  <li>
+                    <NavLink href={homeHref} isActive={isHomeActive}>
+                      Home
+                    </NavLink>
+                  </li>
+                  <li>
+                    <NavLink href={voteHref} isActive={isVoteActive}>
+                      Vote
+                    </NavLink>
+                  </li>
+                  <li>
+                    <NavLink href={resultsHref} isActive={isResultsActive}>
+                      Results
+                    </NavLink>
+                  </li>
+                </ul>
+              </nav>
+            ) : (
+              <nav aria-label="Main navigation">
+                <ul className="flex items-center gap-1 sm:gap-2">
+                  <li>
+                    <NavLink href="/admin" isActive={pathname.startsWith('/admin')}>
+                      Admin
+                    </NavLink>
+                  </li>
+                </ul>
+              </nav>
+            )}
           </div>
         </div>
       </header>

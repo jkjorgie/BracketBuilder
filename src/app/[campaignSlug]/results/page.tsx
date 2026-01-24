@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useParams, useRouter } from 'next/navigation';
 import { Contestant } from '@/types/bracket';
 
 interface MatchupData {
@@ -45,14 +46,11 @@ interface ResultsData {
   champion: Contestant | null;
 }
 
-interface User {
-  id: string;
-  email: string;
-  name: string | null;
-  role: string;
-}
-
 export default function ResultsPage() {
+  const params = useParams();
+  const router = useRouter();
+  const campaignSlug = params.campaignSlug as string;
+
   const [data, setData] = useState<ResultsData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -65,7 +63,7 @@ export default function ResultsPage() {
         
         // Fetch results and session in parallel
         const [resultsResponse, sessionResponse] = await Promise.all([
-          fetch('/api/results'),
+          fetch(`/api/campaigns/${campaignSlug}`),
           fetch('/api/auth/session'),
         ]);
 
@@ -78,7 +76,9 @@ export default function ResultsPage() {
         // Process results
         if (!resultsResponse.ok) {
           if (resultsResponse.status === 404) {
-            setError('No campaign found');
+            // Campaign not found - redirect to root
+            router.push('/');
+            return;
           } else {
             setError('Failed to load results');
           }
@@ -94,7 +94,7 @@ export default function ResultsPage() {
       }
     }
     fetchData();
-  }, []);
+  }, [campaignSlug, router]);
 
   if (isLoading) {
     return (
@@ -129,7 +129,7 @@ export default function ResultsPage() {
         <p className="text-text/70 max-w-md mx-auto">
           There are no results to display at the moment.
         </p>
-        <a href="/vote" className="btn btn-primary mt-6 inline-flex">
+        <a href={`/${campaignSlug}/vote`} className="btn btn-primary mt-6 inline-flex">
           Go Vote
         </a>
       </div>

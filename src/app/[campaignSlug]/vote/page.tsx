@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, Suspense } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useParams, useRouter } from 'next/navigation';
 import { BracketRound, SubmissionForm, SuccessModal } from '@/components';
 import { Contestant, Round } from '@/types/bracket';
 import {
@@ -34,6 +34,9 @@ interface CampaignData {
 }
 
 function VotePageContent() {
+  const params = useParams();
+  const router = useRouter();
+  const campaignSlug = params.campaignSlug as string;
   const searchParams = useSearchParams();
   const source = searchParams.get('source') || 'direct';
 
@@ -67,7 +70,7 @@ function VotePageContent() {
     checkAdmin();
   }, []);
 
-  // Validate vote source
+  // Validate vote source - must belong to this campaign
   useEffect(() => {
     async function validateSource() {
       // Skip validation for 'direct' source
@@ -76,7 +79,8 @@ function VotePageContent() {
       }
 
       try {
-        const response = await fetch('/api/sources');
+        // Fetch sources for this specific campaign
+        const response = await fetch(`/api/sources?campaignSlug=${campaignSlug}`);
         if (!response.ok) {
           console.error('Failed to fetch sources');
           return;
@@ -86,9 +90,9 @@ function VotePageContent() {
         const voteSource = sources.find((s: any) => s.code === source);
         
         if (!voteSource) {
-          // Source doesn't exist - redirect to base /vote
-          console.log('Invalid source, redirecting to /vote');
-          window.location.href = '/vote';
+          // Source doesn't exist for this campaign - redirect to base vote page
+          console.log('Invalid source for this campaign, redirecting to vote page');
+          window.location.href = `/${campaignSlug}/vote`;
           return;
         }
         
@@ -115,17 +119,19 @@ function VotePageContent() {
     }
     
     validateSource();
-  }, [source]);
+  }, [source, campaignSlug]);
 
   // Fetch campaign data from API
   useEffect(() => {
     async function fetchCampaign() {
       try {
         setIsLoading(true);
-        const response = await fetch('/api/campaigns/active');
+        const response = await fetch(`/api/campaigns/${campaignSlug}`);
         if (!response.ok) {
           if (response.status === 404) {
-            setError('No active campaign is currently running. Please check back later or contact an administrator.');
+            // Campaign not found - redirect to root
+            router.push('/');
+            return;
           } else {
             setError('Failed to load campaign');
           }
@@ -141,7 +147,7 @@ function VotePageContent() {
       }
     }
     fetchCampaign();
-  }, []);
+  }, [campaignSlug, router]);
 
   // Get the active round
   const activeRound = campaignData?.rounds.find((r) => r.isActive);
@@ -237,9 +243,9 @@ function VotePageContent() {
           // Already voted
           setHasSubmitted(true);
         } else if (result.invalidSource) {
-          // Invalid source - redirect to base /vote
+          // Invalid source - redirect to base vote page
           alert('This voting link is invalid. You will be redirected to the main voting page.');
-          window.location.href = '/vote';
+          window.location.href = `/${campaignSlug}/vote`;
           return;
         } else if (result.inactiveSource) {
           // Inactive source
@@ -283,7 +289,7 @@ function VotePageContent() {
     } finally {
       setIsSubmitting(false);
     }
-  }, [campaignData, hasSubmitted, isComplete, isSubmitting, selections, source]);
+  }, [campaignData, campaignSlug, hasSubmitted, isComplete, isSubmitting, selections, source]);
 
   // Loading state
   if (isLoading) {
@@ -315,14 +321,13 @@ function VotePageContent() {
           </svg>
         </div>
         <h2 className="text-2xl font-bold text-text mb-2">
-          {error || 'No Active Campaign'}
+          {error || 'Campaign Not Found'}
         </h2>
         <p className="text-text/70 max-w-md mx-auto">
-          There&apos;s no active voting campaign at the moment. Check back later or view
-          the current results.
+          There&apos;s an issue with this campaign. Please check your link or contact an administrator.
         </p>
-        <a href="/results" className="btn btn-primary mt-6 inline-flex">
-          View Results
+        <a href="/" className="btn btn-primary mt-6 inline-flex">
+          Go Home
         </a>
       </div>
     );
@@ -363,7 +368,7 @@ function VotePageContent() {
           There&apos;s no active voting round at the moment. Check back later or view
           the current results.
         </p>
-        <a href="/results" className="btn btn-primary mt-6 inline-flex">
+        <a href={`/${campaignSlug}/results`} className="btn btn-primary mt-6 inline-flex">
           View Results
         </a>
       </div>
@@ -419,7 +424,7 @@ function VotePageContent() {
               <p className="font-medium text-text">Voting Link Issue</p>
               <p className="text-sm text-text/70 mt-1">{sourceError}</p>
               <a
-                href="/vote"
+                href={`/${campaignSlug}/vote`}
                 className="text-sm text-error font-medium hover:underline mt-2 inline-block"
               >
                 Try the main voting page →
@@ -539,6 +544,7 @@ function VotePageContent() {
         isOpen={showSuccess}
         onClose={() => setShowSuccess(false)}
         roundName={activeRound.name}
+        campaignSlug={campaignSlug}
       />
     </>
   );

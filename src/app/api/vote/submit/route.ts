@@ -28,44 +28,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate vote source if not 'direct'
-    if (source !== 'direct') {
-      const voteSource = await prisma.voteSource.findUnique({
-        where: { code: source },
-      });
-
-      if (!voteSource) {
-        return NextResponse.json(
-          { error: 'Invalid vote source', invalidSource: true },
-          { status: 400 }
-        );
-      }
-
-      if (!voteSource.isActive) {
-        return NextResponse.json(
-          { error: 'This vote source is not currently active', inactiveSource: true },
-          { status: 403 }
-        );
-      }
-
-      // Check validity period if set
-      if (voteSource.validFrom || voteSource.validUntil) {
-        const now = new Date();
-        if (voteSource.validFrom && now < voteSource.validFrom) {
-          return NextResponse.json(
-            { error: 'This vote source is not yet valid', inactiveSource: true },
-            { status: 403 }
-          );
-        }
-        if (voteSource.validUntil && now > voteSource.validUntil) {
-          return NextResponse.json(
-            { error: 'This vote source has expired', inactiveSource: true },
-            { status: 403 }
-          );
-        }
-      }
-    }
-
+    // Get the campaign first to validate source against it
     // Get the campaign
     const campaign = await prisma.campaign.findUnique({
       where: { slug: campaignSlug },
@@ -96,6 +59,47 @@ export async function POST(request: NextRequest) {
         { error: 'This campaign is not currently active' },
         { status: 400 }
       );
+    }
+
+    // Validate vote source if not 'direct' - must belong to this campaign
+    if (source !== 'direct') {
+      const voteSource = await prisma.voteSource.findFirst({
+        where: { 
+          campaignId: campaign.id,
+          code: source,
+        },
+      });
+
+      if (!voteSource) {
+        return NextResponse.json(
+          { error: 'Invalid vote source for this campaign', invalidSource: true },
+          { status: 400 }
+        );
+      }
+
+      if (!voteSource.isActive) {
+        return NextResponse.json(
+          { error: 'This vote source is not currently active', inactiveSource: true },
+          { status: 403 }
+        );
+      }
+
+      // Check validity period if set
+      if (voteSource.validFrom || voteSource.validUntil) {
+        const now = new Date();
+        if (voteSource.validFrom && now < voteSource.validFrom) {
+          return NextResponse.json(
+            { error: 'This vote source is not yet valid', inactiveSource: true },
+            { status: 403 }
+          );
+        }
+        if (voteSource.validUntil && now > voteSource.validUntil) {
+          return NextResponse.json(
+            { error: 'This vote source has expired', inactiveSource: true },
+            { status: 403 }
+          );
+        }
+      }
     }
 
     const activeRound = campaign.rounds[0];
