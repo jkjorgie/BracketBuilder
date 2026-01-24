@@ -40,6 +40,7 @@ function VotePageContent() {
   const [campaignData, setCampaignData] = useState<CampaignData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [sourceError, setSourceError] = useState<string | null>(null);
   const [selections, setSelections] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
@@ -47,6 +48,74 @@ function VotePageContent() {
   const [userName, setUserName] = useState('');
   const [userEmail, setUserEmail] = useState('');
   const [isLoaded, setIsLoaded] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  // Check if user is admin
+  useEffect(() => {
+    async function checkAdmin() {
+      try {
+        const response = await fetch('/api/auth/session');
+        const data = await response.json();
+        if (data.authenticated && data.user) {
+          setIsAdmin(true);
+        }
+      } catch (err) {
+        // Not admin or not logged in
+        setIsAdmin(false);
+      }
+    }
+    checkAdmin();
+  }, []);
+
+  // Validate vote source
+  useEffect(() => {
+    async function validateSource() {
+      // Skip validation for 'direct' source
+      if (source === 'direct') {
+        return;
+      }
+
+      try {
+        const response = await fetch('/api/sources');
+        if (!response.ok) {
+          console.error('Failed to fetch sources');
+          return;
+        }
+        
+        const sources = await response.json();
+        const voteSource = sources.find((s: any) => s.code === source);
+        
+        if (!voteSource) {
+          // Source doesn't exist - redirect to base /vote
+          console.log('Invalid source, redirecting to /vote');
+          window.location.href = '/vote';
+          return;
+        }
+        
+        if (!voteSource.isActive) {
+          setSourceError('This voting link is not currently active. Please use a different link or contact an administrator.');
+          return;
+        }
+
+        // Check validity period
+        if (voteSource.validFrom || voteSource.validUntil) {
+          const now = new Date();
+          if (voteSource.validFrom && now < new Date(voteSource.validFrom)) {
+            setSourceError('This voting link is not yet available. Please check back later.');
+            return;
+          }
+          if (voteSource.validUntil && now > new Date(voteSource.validUntil)) {
+            setSourceError('This voting link has expired. Please use a different link or contact an administrator.');
+            return;
+          }
+        }
+      } catch (err) {
+        console.error('Error validating source:', err);
+      }
+    }
+    
+    validateSource();
+  }, [source]);
 
   // Fetch campaign data from API
   useEffect(() => {
@@ -56,7 +125,7 @@ function VotePageContent() {
         const response = await fetch('/api/campaigns/active');
         if (!response.ok) {
           if (response.status === 404) {
-            setError('No active campaign found');
+            setError('No active campaign is currently running. Please check back later or contact an administrator.');
           } else {
             setError('Failed to load campaign');
           }
@@ -167,6 +236,15 @@ function VotePageContent() {
         if (response.status === 409) {
           // Already voted
           setHasSubmitted(true);
+        } else if (result.invalidSource) {
+          // Invalid source - redirect to base /vote
+          alert('This voting link is invalid. You will be redirected to the main voting page.');
+          window.location.href = '/vote';
+          return;
+        } else if (result.inactiveSource) {
+          // Inactive source
+          setSourceError(result.error || 'This voting link is not currently active.');
+          return;
         } else {
           throw new Error(result.error || 'Failed to submit vote');
         }
@@ -294,8 +372,8 @@ function VotePageContent() {
 
   return (
     <>
-      {/* Source indicator */}
-      {source !== 'direct' && (
+      {/* Source indicator - only shown to admins */}
+      {isAdmin && source !== 'direct' && (
         <div className="bg-secondary/10 border border-secondary/30 rounded-lg p-4 mb-8">
           <div className="flex items-center gap-2">
             <svg
@@ -314,6 +392,39 @@ function VotePageContent() {
               Voting via:{' '}
               <span className="text-secondary font-bold">{source}</span>
             </span>
+          </div>
+        </div>
+      )}
+
+      {/* Source error message */}
+      {sourceError && (
+        <div
+          className="bg-error/10 border border-error/30 rounded-lg p-4 mb-8"
+          role="alert"
+        >
+          <div className="flex items-start gap-3">
+            <svg
+              className="w-5 h-5 text-error flex-shrink-0 mt-0.5"
+              fill="currentColor"
+              viewBox="0 0 20 20"
+              aria-hidden="true"
+            >
+              <path
+                fillRule="evenodd"
+                d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                clipRule="evenodd"
+              />
+            </svg>
+            <div>
+              <p className="font-medium text-text">Voting Link Issue</p>
+              <p className="text-sm text-text/70 mt-1">{sourceError}</p>
+              <a
+                href="/vote"
+                className="text-sm text-error font-medium hover:underline mt-2 inline-block"
+              >
+                Try the main voting page →
+              </a>
+            </div>
           </div>
         </div>
       )}
@@ -396,7 +507,7 @@ function VotePageContent() {
             round={activeRound}
             selections={selections}
             onSelectWinner={handleSelectWinner}
-            isVotingEnabled={!hasSubmitted}
+            isVotingEnabled={!hasSubmitted && !sourceError}
             eliminatedContestants={eliminatedContestants}
           />
         </div>
@@ -409,7 +520,7 @@ function VotePageContent() {
               selectedCount={selectedCount}
               onSubmit={handleSubmit}
               isSubmitting={isSubmitting}
-              hasAlreadySubmitted={hasSubmitted}
+              hasAlreadySubmitted={hasSubmitted || !!sourceError}
               initialName={userName}
               initialEmail={userEmail}
             />

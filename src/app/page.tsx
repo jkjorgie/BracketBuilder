@@ -94,7 +94,6 @@ export default function HomePage() {
 
         <div className="relative z-10 max-w-3xl">
           <span className="inline-flex items-center gap-2 bg-white/20 backdrop-blur-sm text-text font-semibold px-4 py-2 rounded-full text-sm mb-6">
-            <span className="text-lg" aria-hidden="true">🏀</span>
             {activeRound ? `${activeRound.name} - Voting Open!` : 'Tournament Active'}
           </span>
 
@@ -136,7 +135,7 @@ export default function HomePage() {
           </div>
         </div>
 
-        {/* Basketball decorative element */}
+        {/* Bracket decorative element */}
         <div
           className="absolute right-0 top-1/2 -translate-y-1/2 opacity-20 hidden lg:block"
           aria-hidden="true"
@@ -259,7 +258,7 @@ export default function HomePage() {
               <p className="text-text/60 mt-1">Meet this year&apos;s contenders — who will cut down the nets?</p>
             </div>
             <span className="text-sm font-medium text-text/60 bg-surface px-3 py-1 rounded-full">
-              🏀 {contestantCount} Competitors
+              {contestantCount} Competitors
             </span>
           </div>
 
@@ -279,7 +278,7 @@ export default function HomePage() {
                   </span>
                   <div>
                     <h3 className="font-semibold text-text">{contestant!.name}</h3>
-                    <p className="text-sm text-text/70 mt-1 line-clamp-2">
+                    <p className="text-sm text-text/70 mt-1">
                       {contestant!.description}
                     </p>
                   </div>
@@ -356,7 +355,7 @@ export default function HomePage() {
                     href="/vote"
                     className="btn btn-primary text-sm"
                   >
-                    🏀 Vote Now
+                    Vote Now
                   </Link>
                 )}
                 {round.isComplete && (

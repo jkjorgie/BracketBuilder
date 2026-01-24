@@ -64,7 +64,7 @@ interface VoteSource {
   isActive: boolean;
 }
 
-type Tab = 'campaigns' | 'rounds' | 'matchups' | 'sources';
+type Tab = 'campaigns' | 'rounds' | 'matchups' | 'sources' | 'submissions';
 
 export default function AdminPage() {
   const [user, setUser] = useState<User | null>(null);
@@ -76,6 +76,7 @@ export default function AdminPage() {
   const [activeTab, setActiveTab] = useState<Tab>('campaigns');
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [voteSources, setVoteSources] = useState<VoteSource[]>([]);
+  const [submissions, setSubmissions] = useState<any>(null);
   const [selectedCampaign, setSelectedCampaign] = useState<Campaign | null>(null);
   const [dataLoading, setDataLoading] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
@@ -144,6 +145,21 @@ export default function AdminPage() {
     }
   }, []);
 
+  const fetchSubmissions = useCallback(async () => {
+    setDataLoading(true);
+    try {
+      const res = await fetch('/api/admin/submissions');
+      if (res.ok) {
+        const data = await res.json();
+        setSubmissions(data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch submissions:', error);
+    } finally {
+      setDataLoading(false);
+    }
+  }, []);
+
   // Initial data fetch - only runs once when user is set
   const hasFetchedRef = useRef(false);
   useEffect(() => {
@@ -153,6 +169,13 @@ export default function AdminPage() {
       fetchVoteSources();
     }
   }, [user, fetchCampaigns, fetchVoteSources]);
+
+  // Fetch submissions when tab is opened
+  useEffect(() => {
+    if (user && activeTab === 'submissions' && !submissions) {
+      fetchSubmissions();
+    }
+  }, [user, activeTab, submissions, fetchSubmissions]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -331,7 +354,7 @@ export default function AdminPage() {
         <div className="max-w-md w-full">
           <div className="bg-gray-800 rounded-2xl shadow-2xl p-8 border border-gray-700">
             <div className="text-center mb-8">
-              <h1 className="text-3xl font-bold text-white mb-2">🏀 Admin Portal</h1>
+              <h1 className="text-3xl font-bold text-white mb-2">Admin Portal</h1>
               <p className="text-gray-400">GT eForms Feature Face Off</p>
             </div>
 
@@ -394,7 +417,7 @@ export default function AdminPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex justify-between items-center">
             <div>
-              <h1 className="text-2xl font-bold text-white">🏀 Admin Dashboard</h1>
+              <h1 className="text-2xl font-bold text-white">Admin Dashboard</h1>
               <p className="text-gray-400 text-sm">Feature Face Off Management</p>
             </div>
             <div className="flex items-center gap-4">
@@ -430,6 +453,7 @@ export default function AdminPage() {
               { id: 'rounds', label: '📅 Rounds' },
               { id: 'matchups', label: '⚔️ Matchups' },
               { id: 'sources', label: '🔗 Vote Sources' },
+              { id: 'submissions', label: '📊 Submissions' },
             ].map((tab) => (
               <button
                 key={tab.id}
@@ -491,6 +515,14 @@ export default function AdminPage() {
                 sources={voteSources}
                 onToggle={handleToggleVoteSource}
                 onRefresh={fetchVoteSources}
+              />
+            )}
+
+            {/* Submissions Tab */}
+            {activeTab === 'submissions' && (
+              <SubmissionsTab
+                submissions={submissions}
+                onRefresh={fetchSubmissions}
               />
             )}
 
@@ -959,6 +991,209 @@ function VoteSourcesTab({
             </div>
           ))}
         </div>
+      </div>
+    </div>
+  );
+}
+
+// Submissions Tab Component
+function SubmissionsTab({
+  submissions,
+  onRefresh,
+}: {
+  submissions: any;
+  onRefresh: () => void;
+}) {
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterSource, setFilterSource] = useState('all');
+
+  if (!submissions) {
+    return (
+      <div className="text-center py-12">
+        <div className="animate-spin w-8 h-8 border-4 border-[#FF9E18] border-t-transparent rounded-full mx-auto"></div>
+        <p className="text-gray-400 mt-4">Loading submissions...</p>
+      </div>
+    );
+  }
+
+  const { votes, totalVotes } = submissions;
+
+  // Filter votes
+  const filteredVotes = votes.filter((vote: any) => {
+    const matchesSearch =
+      searchTerm === '' ||
+      vote.voterName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      vote.voterEmail.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    const matchesSource = filterSource === 'all' || vote.source === filterSource;
+    
+    return matchesSearch && matchesSource;
+  });
+
+  // Get unique sources for filter
+  const uniqueSources = Array.from(new Set(votes.map((v: any) => v.source))).sort();
+
+  return (
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <div>
+          <h2 className="text-xl font-semibold text-white">All Vote Submissions</h2>
+          <p className="text-gray-400 text-sm">View decrypted voter information and choices</p>
+        </div>
+        <button
+          onClick={onRefresh}
+          className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg text-sm"
+        >
+          🔄 Refresh
+        </button>
+      </div>
+
+      {/* Stats */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
+          <div className="text-gray-400 text-sm">Total Votes</div>
+          <div className="text-2xl font-bold text-white mt-1">{totalVotes}</div>
+        </div>
+        <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
+          <div className="text-gray-400 text-sm">Unique Voters</div>
+          <div className="text-2xl font-bold text-white mt-1">
+            {new Set(votes.map((v: any) => v.voterEmail)).size}
+          </div>
+        </div>
+        <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
+          <div className="text-gray-400 text-sm">Vote Sources</div>
+          <div className="text-2xl font-bold text-white mt-1">{uniqueSources.length}</div>
+        </div>
+      </div>
+
+      {/* Filters */}
+      <div className="bg-gray-800 rounded-xl p-4 border border-gray-700">
+        <div className="grid sm:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm text-gray-400 mb-2">Search by Name or Email</label>
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Search..."
+              className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-[#FF9E18]"
+            />
+          </div>
+          <div>
+            <label className="block text-sm text-gray-400 mb-2">Filter by Source</label>
+            <select
+              value={filterSource}
+              onChange={(e) => setFilterSource(e.target.value)}
+              className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-[#FF9E18]"
+            >
+              <option value="all">All Sources</option>
+              {uniqueSources.map((source: string) => (
+                <option key={source} value={source}>{source}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+        <div className="mt-2 text-sm text-gray-400">
+          Showing {filteredVotes.length} of {totalVotes} votes
+        </div>
+      </div>
+
+      {/* Submissions Table */}
+      <div className="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead>
+              <tr className="text-left border-b border-gray-700 bg-gray-900/50">
+                <th className="px-4 py-3 text-gray-400 font-medium text-sm">Voter</th>
+                <th className="px-4 py-3 text-gray-400 font-medium text-sm">Email</th>
+                <th className="px-4 py-3 text-gray-400 font-medium text-sm">Source</th>
+                <th className="px-4 py-3 text-gray-400 font-medium text-sm">Campaign</th>
+                <th className="px-4 py-3 text-gray-400 font-medium text-sm">Round</th>
+                <th className="px-4 py-3 text-gray-400 font-medium text-sm">Matchup</th>
+                <th className="px-4 py-3 text-gray-400 font-medium text-sm">Selected</th>
+                <th className="px-4 py-3 text-gray-400 font-medium text-sm">Date</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-700">
+              {filteredVotes.length === 0 ? (
+                <tr>
+                  <td colSpan={8} className="px-4 py-8 text-center text-gray-400">
+                    No votes found matching your filters
+                  </td>
+                </tr>
+              ) : (
+                filteredVotes.map((vote: any) => (
+                  <tr key={vote.id} className="hover:bg-gray-700/50">
+                    <td className="px-4 py-3 text-white text-sm">{vote.voterName}</td>
+                    <td className="px-4 py-3 text-gray-300 text-sm">{vote.voterEmail}</td>
+                    <td className="px-4 py-3">
+                      <code className="text-xs bg-gray-700 px-2 py-1 rounded text-[#00B2E3]">
+                        {vote.source}
+                      </code>
+                    </td>
+                    <td className="px-4 py-3 text-gray-300 text-sm">{vote.campaign.name}</td>
+                    <td className="px-4 py-3 text-gray-300 text-sm">{vote.round.name}</td>
+                    <td className="px-4 py-3 text-gray-300 text-sm">
+                      {vote.matchup.competitor1} vs {vote.matchup.competitor2}
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className="text-[#FF9E18] font-medium text-sm">
+                        {vote.selectedCompetitor}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-gray-400 text-sm">
+                      {new Date(vote.createdAt).toLocaleDateString('en-US', {
+                        month: 'short',
+                        day: 'numeric',
+                        hour: 'numeric',
+                        minute: '2-digit',
+                      })}
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Export Button */}
+      <div className="flex justify-end">
+        <button
+          onClick={() => {
+            // Create CSV content
+            const headers = ['Voter Name', 'Email', 'Source', 'Campaign', 'Round', 'Matchup', 'Selected', 'Date'];
+            const rows = filteredVotes.map((vote: any) => [
+              vote.voterName,
+              vote.voterEmail,
+              vote.source,
+              vote.campaign.name,
+              vote.round.name,
+              `${vote.matchup.competitor1} vs ${vote.matchup.competitor2}`,
+              vote.selectedCompetitor,
+              new Date(vote.createdAt).toISOString(),
+            ]);
+            
+            const csvContent = [
+              headers.join(','),
+              ...rows.map((row: string[]) => row.map(cell => `"${cell}"`).join(',')),
+            ].join('\n');
+            
+            // Download CSV
+            const blob = new Blob([csvContent], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `submissions-${new Date().toISOString().split('T')[0]}.csv`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+          }}
+          className="px-4 py-2 bg-[#FF9E18] hover:bg-[#e88f15] text-white rounded-lg text-sm font-medium"
+        >
+          📥 Export to CSV
+        </button>
       </div>
     </div>
   );

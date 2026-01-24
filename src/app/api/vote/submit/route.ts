@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma, { TransactionClient } from '@/lib/db';
 import { logAudit } from '@/lib/audit';
+import { encrypt } from '@/lib/encryption';
 
 // POST /api/vote/submit - Submit all votes for a round at once
 export async function POST(request: NextRequest) {
@@ -25,6 +26,44 @@ export async function POST(request: NextRequest) {
         { error: 'Invalid email format' },
         { status: 400 }
       );
+    }
+
+    // Validate vote source if not 'direct'
+    if (source !== 'direct') {
+      const voteSource = await prisma.voteSource.findUnique({
+        where: { code: source },
+      });
+
+      if (!voteSource) {
+        return NextResponse.json(
+          { error: 'Invalid vote source', invalidSource: true },
+          { status: 400 }
+        );
+      }
+
+      if (!voteSource.isActive) {
+        return NextResponse.json(
+          { error: 'This vote source is not currently active', inactiveSource: true },
+          { status: 403 }
+        );
+      }
+
+      // Check validity period if set
+      if (voteSource.validFrom || voteSource.validUntil) {
+        const now = new Date();
+        if (voteSource.validFrom && now < voteSource.validFrom) {
+          return NextResponse.json(
+            { error: 'This vote source is not yet valid', inactiveSource: true },
+            { status: 403 }
+          );
+        }
+        if (voteSource.validUntil && now > voteSource.validUntil) {
+          return NextResponse.json(
+            { error: 'This vote source has expired', inactiveSource: true },
+            { status: 403 }
+          );
+        }
+      }
     }
 
     // Get the campaign
@@ -102,7 +141,7 @@ export async function POST(request: NextRequest) {
     const existingVotes = await prisma.vote.findMany({
       where: {
         matchupId: { in: selectionEntries.map(([id]) => id) },
-        voterEmail,
+        voterEmail: encrypt(voterEmail),
         source,
       },
     });
@@ -117,6 +156,10 @@ export async function POST(request: NextRequest) {
     // Create all votes in a transaction
     const votes = await prisma.$transaction(async (tx: TransactionClient) => {
       const createdVotes = [];
+      
+      // Encrypt voter data once
+      const encryptedName = encrypt(voterName);
+      const encryptedEmail = encrypt(voterEmail);
 
       for (const [matchupId, competitorId] of selectionEntries) {
         const matchup = matchupMap[matchupId]!;
@@ -127,8 +170,8 @@ export async function POST(request: NextRequest) {
             matchupId,
             competitorId,
             campaignId: campaign.id,
-            voterName,
-            voterEmail,
+            voterName: encryptedName,
+            voterEmail: encryptedEmail,
             source,
           },
         });

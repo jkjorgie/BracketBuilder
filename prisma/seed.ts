@@ -18,7 +18,7 @@ const prisma = new PrismaClient({
 });
 
 async function main() {
-  console.log('🏀 Starting Feature Face Off database seed...');
+  console.log('Starting Feature Face Off database seed...');
 
   // Clear existing data
   console.log('🧹 Clearing existing data...');
@@ -339,7 +339,7 @@ async function main() {
   console.log('   Day 2 (Tuesday): booth-day2, day2-keynote, etc.');
   console.log('   Day 3 (Wednesday): booth-day3, day3-keynote, etc.');
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-  console.log('🏀 Ready for March Madness-style voting!');
+  console.log('Ready for March Madness-style voting!');
 }
 
 main()

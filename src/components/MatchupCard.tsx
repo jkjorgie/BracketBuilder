@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { Contestant, Matchup } from '@/types/bracket';
 
 interface MatchupCardProps {
@@ -20,6 +21,8 @@ export function MatchupCard({
   eliminatedContestants = new Set(),
 }: MatchupCardProps) {
   const { contestant1, contestant2 } = matchup;
+  const [expanded1, setExpanded1] = useState(false);
+  const [expanded2, setExpanded2] = useState(false);
 
   // If contestants are not yet determined (future rounds)
   if (!contestant1 || !contestant2) {
@@ -60,17 +63,32 @@ export function MatchupCard({
           isWinner={showResult && matchup.winner?.id === contestant1.id}
           isEliminated={eliminatedContestants.has(contestant1.id)}
           position="top"
+          isExpanded={expanded1}
+          onToggleExpand={setExpanded1}
         />
+      </fieldset>
 
-        <div className="flex items-center justify-center py-2 bg-surface">
-          <span
-            className="text-sm font-bold text-text/60 uppercase tracking-wider"
-            aria-hidden="true"
-          >
-            VS
-          </span>
-        </div>
+      {/* Read More Button for contestant1 - outside fieldset so it always works */}
+      <ReadMoreButton
+        matchupId={matchup.id}
+        contestantId={contestant1.id}
+        isExpanded={expanded1}
+        onToggle={() => setExpanded1(!expanded1)}
+        isEliminated={eliminatedContestants.has(contestant1.id)}
+        needsExpansion={contestant1.description && contestant1.description.length > 100}
+        position="top"
+      />
 
+      <div className="flex items-center justify-center py-2 bg-surface">
+        <span
+          className="text-sm font-bold text-text/60 uppercase tracking-wider"
+          aria-hidden="true"
+        >
+          VS
+        </span>
+      </div>
+
+      <fieldset disabled={isDisabled}>
         <ContestantOption
           contestant={contestant2}
           matchupId={matchup.id}
@@ -80,8 +98,21 @@ export function MatchupCard({
           isWinner={showResult && matchup.winner?.id === contestant2.id}
           isEliminated={eliminatedContestants.has(contestant2.id)}
           position="bottom"
+          isExpanded={expanded2}
+          onToggleExpand={setExpanded2}
         />
       </fieldset>
+
+      {/* Read More Button for contestant2 - outside fieldset so it always works */}
+      <ReadMoreButton
+        matchupId={matchup.id}
+        contestantId={contestant2.id}
+        isExpanded={expanded2}
+        onToggle={() => setExpanded2(!expanded2)}
+        isEliminated={eliminatedContestants.has(contestant2.id)}
+        needsExpansion={contestant2.description && contestant2.description.length > 100}
+        position="bottom"
+      />
     </div>
   );
 }
@@ -95,6 +126,8 @@ interface ContestantOptionProps {
   isWinner: boolean;
   isEliminated: boolean;
   position: 'top' | 'bottom';
+  isExpanded: boolean;
+  onToggleExpand: (expanded: boolean) => void;
 }
 
 function ContestantOption({
@@ -106,8 +139,13 @@ function ContestantOption({
   isWinner,
   isEliminated,
   position,
+  isExpanded,
+  onToggleExpand,
 }: ContestantOptionProps) {
   const inputId = `${matchupId}-${contestant.id}`;
+
+  // Check if description is long enough to need expansion (rough estimate: > 100 chars)
+  const needsExpansion = contestant.description && contestant.description.length > 100;
 
   return (
     <div
@@ -120,89 +158,83 @@ function ContestantOption({
         ${!isDisabled && !isEliminated ? 'cursor-pointer hover:bg-secondary/5' : ''}
       `}
     >
-      <label
-        htmlFor={inputId}
-        className={`flex items-start gap-3 ${!isDisabled && !isEliminated ? 'cursor-pointer' : ''}`}
-      >
-        <input
-          type="radio"
-          id={inputId}
-          name={`matchup-${matchupId}`}
-          value={contestant.id}
-          checked={isSelected}
-          onChange={onSelect}
-          disabled={isDisabled || isEliminated}
-          className="mt-1 w-5 h-5 accent-primary focus:ring-2 focus:ring-focus focus:ring-offset-2"
-          aria-describedby={`${inputId}-description`}
-        />
+      <div className="flex items-start gap-3">
+        <label
+          htmlFor={inputId}
+          className={`flex items-start gap-3 flex-1 ${!isDisabled && !isEliminated ? 'cursor-pointer' : ''}`}
+        >
+          <input
+            type="radio"
+            id={inputId}
+            name={`matchup-${matchupId}`}
+            value={contestant.id}
+            checked={isSelected}
+            onChange={onSelect}
+            disabled={isDisabled || isEliminated}
+            className="mt-1 w-5 h-5 accent-primary focus:ring-2 focus:ring-focus focus:ring-offset-2"
+            aria-describedby={`${inputId}-description`}
+          />
 
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span 
-              className={`font-semibold text-lg ${
-                isEliminated 
-                  ? 'text-text/40 line-through decoration-error decoration-2' 
-                  : 'text-text'
-              }`}
-            >
-              {contestant.name}
-            </span>
-            {contestant.seed && (
-              <span
-                className={`inline-flex items-center justify-center w-6 h-6 text-xs font-bold rounded-full ${
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span 
+                className={`font-semibold text-lg ${
                   isEliminated 
-                    ? 'bg-text/20 text-text/40' 
-                    : 'bg-secondary text-white'
+                    ? 'text-text/40 line-through decoration-error decoration-2' 
+                    : 'text-text'
                 }`}
-                aria-label={`Seed ${contestant.seed}`}
               >
-                {contestant.seed}
+                {contestant.name}
               </span>
-            )}
-            {isWinner && (
-              <span className="inline-flex items-center gap-1 text-xs font-semibold text-success bg-success/20 px-2 py-0.5 rounded-full">
-                <svg
-                  className="w-3 h-3"
-                  fill="currentColor"
-                  viewBox="0 0 20 20"
-                  aria-hidden="true"
+              {contestant.seed && (
+                <span
+                  className={`inline-flex items-center justify-center w-6 h-6 text-xs font-bold rounded-full ${
+                    isEliminated 
+                      ? 'bg-text/20 text-text/40' 
+                      : 'bg-secondary text-white'
+                  }`}
+                  aria-label={`Seed ${contestant.seed}`}
                 >
-                  <path
-                    fillRule="evenodd"
-                    d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                    clipRule="evenodd"
-                  />
-                </svg>
-                Winner
-              </span>
-            )}
-            {isEliminated && (
-              <span className="inline-flex items-center gap-1 text-xs font-semibold text-error bg-error/20 px-2 py-0.5 rounded-full">
-                <svg
-                  className="w-3 h-3"
-                  fill="currentColor"
-                  viewBox="0 0 20 20"
-                  aria-hidden="true"
-                >
-                  <path
-                    fillRule="evenodd"
-                    d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
-                    clipRule="evenodd"
-                  />
-                </svg>
-                Eliminated
-              </span>
-            )}
+                  {contestant.seed}
+                </span>
+              )}
+              {isWinner && (
+                <span className="inline-flex items-center gap-1 text-xs font-semibold text-success bg-success/20 px-2 py-0.5 rounded-full">
+                  <svg
+                    className="w-3 h-3"
+                    fill="currentColor"
+                    viewBox="0 0 20 20"
+                    aria-hidden="true"
+                  >
+                    <path
+                      fillRule="evenodd"
+                      d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                  Winner
+                </span>
+              )}
+              {isEliminated && (
+                <span className="inline-flex items-center gap-1 text-xs font-semibold text-error bg-error/20 px-2 py-0.5 rounded-full">
+                  <svg
+                    className="w-3 h-3"
+                    fill="currentColor"
+                    viewBox="0 0 20 20"
+                    aria-hidden="true"
+                  >
+                    <path
+                      fillRule="evenodd"
+                      d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                  Eliminated
+                </span>
+              )}
+            </div>
           </div>
-          <p
-            id={`${inputId}-description`}
-            className={`text-sm mt-1 line-clamp-2 ${
-              isEliminated ? 'text-text/40' : 'text-text/70'
-            }`}
-          >
-            {contestant.description}
-          </p>
-        </div>
+        </label>
 
         {isSelected && !isDisabled && !isEliminated && (
           <div
@@ -224,7 +256,62 @@ function ContestantOption({
             </svg>
           </div>
         )}
-      </label>
+      </div>
+
+      {/* Description - moved outside label */}
+      <div className="ml-11 mt-1">
+        <p
+          id={`${inputId}-description`}
+          className={`text-sm ${
+            isExpanded ? '' : 'line-clamp-2'
+          } ${
+            isEliminated ? 'text-text/40' : 'text-text/70'
+          }`}
+        >
+          {contestant.description}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// Read More Button Component - separate to render outside fieldset
+function ReadMoreButton({
+  matchupId,
+  contestantId,
+  isExpanded,
+  onToggle,
+  isEliminated,
+  needsExpansion,
+  position,
+}: {
+  matchupId: string;
+  contestantId: string;
+  isExpanded: boolean;
+  onToggle: () => void;
+  isEliminated: boolean;
+  needsExpansion: boolean;
+  position: 'top' | 'bottom';
+}) {
+  const inputId = `${matchupId}-${contestantId}`;
+  
+  if (!needsExpansion) {
+    return null;
+  }
+
+  return (
+    <div className={`px-4 ${position === 'top' ? 'pb-2' : 'pt-2'}`}>
+      <button
+        type="button"
+        onClick={onToggle}
+        className={`ml-11 text-xs font-medium hover:underline focus:outline-none focus:ring-2 focus:ring-focus rounded ${
+          isEliminated ? 'text-text/40' : 'text-secondary'
+        }`}
+        aria-expanded={isExpanded}
+        aria-controls={`${inputId}-description`}
+      >
+        {isExpanded ? 'Show less' : 'Read more...'}
+      </button>
     </div>
   );
 }

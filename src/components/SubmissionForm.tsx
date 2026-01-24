@@ -271,7 +271,7 @@ export function SubmissionForm({
               </p>
             ) : (
               <p id="email-hint" className="mt-1 text-xs text-text/50">
-                We&apos;ll use this to notify you of results
+                Your name and email will be encrypted for privacy
               </p>
             )}
           </div>
