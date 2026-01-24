@@ -64,7 +64,6 @@ export function MatchupCard({
           isEliminated={eliminatedContestants.has(contestant1.id)}
           position="top"
           isExpanded={expanded1}
-          onToggleExpand={setExpanded1}
         />
       </fieldset>
 
@@ -99,7 +98,6 @@ export function MatchupCard({
           isEliminated={eliminatedContestants.has(contestant2.id)}
           position="bottom"
           isExpanded={expanded2}
-          onToggleExpand={setExpanded2}
         />
       </fieldset>
 
@@ -127,7 +125,6 @@ interface ContestantOptionProps {
   isEliminated: boolean;
   position: 'top' | 'bottom';
   isExpanded: boolean;
-  onToggleExpand: (expanded: boolean) => void;
 }
 
 function ContestantOption({
@@ -140,12 +137,16 @@ function ContestantOption({
   isEliminated,
   position,
   isExpanded,
-  onToggleExpand,
 }: ContestantOptionProps) {
   const inputId = `${matchupId}-${contestant.id}`;
+  const canSelect = !isDisabled && !isEliminated;
 
-  // Check if description is long enough to need expansion (rough estimate: > 100 chars)
-  const needsExpansion = contestant.description && contestant.description.length > 100;
+  // Handle click on entire card area
+  const handleCardClick = () => {
+    if (canSelect) {
+      onSelect();
+    }
+  };
 
   return (
     <div
@@ -155,86 +156,112 @@ function ContestantOption({
         ${isWinner ? 'bg-success/10' : ''}
         ${isEliminated ? 'bg-error/5' : ''}
         ${position === 'top' ? 'rounded-t-lg' : 'rounded-b-lg'}
-        ${!isDisabled && !isEliminated ? 'cursor-pointer hover:bg-secondary/5' : ''}
+        ${canSelect ? 'cursor-pointer hover:bg-secondary/5' : ''}
+        transition-colors
       `}
+      onClick={handleCardClick}
+      role="button"
+      tabIndex={canSelect ? 0 : -1}
+      onKeyDown={(e) => {
+        if (canSelect && (e.key === 'Enter' || e.key === ' ')) {
+          e.preventDefault();
+          onSelect();
+        }
+      }}
     >
       <div className="flex items-start gap-3">
-        <label
-          htmlFor={inputId}
-          className={`flex items-start gap-3 flex-1 ${!isDisabled && !isEliminated ? 'cursor-pointer' : ''}`}
+        {/* Hidden radio for form semantics, visible custom indicator */}
+        <input
+          type="radio"
+          id={inputId}
+          name={`matchup-${matchupId}`}
+          value={contestant.id}
+          checked={isSelected}
+          onChange={onSelect}
+          disabled={isDisabled || isEliminated}
+          className="sr-only"
+          aria-describedby={`${inputId}-description`}
+        />
+        
+        {/* Custom radio indicator */}
+        <div 
+          className={`
+            mt-1 w-5 h-5 rounded-full border-2 flex-shrink-0 flex items-center justify-center
+            ${isSelected && !isEliminated 
+              ? 'border-primary bg-primary' 
+              : isEliminated 
+                ? 'border-text/20 bg-text/5' 
+                : 'border-text/30 bg-white'
+            }
+            transition-colors
+          `}
+          aria-hidden="true"
         >
-          <input
-            type="radio"
-            id={inputId}
-            name={`matchup-${matchupId}`}
-            value={contestant.id}
-            checked={isSelected}
-            onChange={onSelect}
-            disabled={isDisabled || isEliminated}
-            className="mt-1 w-5 h-5 accent-primary focus:ring-2 focus:ring-focus focus:ring-offset-2"
-            aria-describedby={`${inputId}-description`}
-          />
+          {isSelected && !isEliminated && (
+            <div className="w-2 h-2 rounded-full bg-white" />
+          )}
+        </div>
 
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 flex-wrap">
-              <span 
-                className={`font-semibold text-lg ${
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <label 
+              htmlFor={inputId}
+              className={`font-semibold text-lg ${canSelect ? 'cursor-pointer' : ''} ${
+                isEliminated 
+                  ? 'text-text/40 line-through decoration-error decoration-2' 
+                  : 'text-text'
+              }`}
+            >
+              {contestant.name}
+            </label>
+            {contestant.seed && (
+              <span
+                className={`inline-flex items-center justify-center w-6 h-6 text-xs font-bold rounded-full ${
                   isEliminated 
-                    ? 'text-text/40 line-through decoration-error decoration-2' 
-                    : 'text-text'
+                    ? 'bg-text/20 text-text/40' 
+                    : 'bg-secondary text-white'
                 }`}
+                aria-label={`Seed ${contestant.seed}`}
               >
-                {contestant.name}
+                {contestant.seed}
               </span>
-              {contestant.seed && (
-                <span
-                  className={`inline-flex items-center justify-center w-6 h-6 text-xs font-bold rounded-full ${
-                    isEliminated 
-                      ? 'bg-text/20 text-text/40' 
-                      : 'bg-secondary text-white'
-                  }`}
-                  aria-label={`Seed ${contestant.seed}`}
+            )}
+            {isWinner && (
+              <span className="inline-flex items-center gap-1 text-xs font-semibold text-success bg-success/20 px-2 py-0.5 rounded-full">
+                <svg
+                  className="w-3 h-3"
+                  fill="currentColor"
+                  viewBox="0 0 20 20"
+                  aria-hidden="true"
                 >
-                  {contestant.seed}
-                </span>
-              )}
-              {isWinner && (
-                <span className="inline-flex items-center gap-1 text-xs font-semibold text-success bg-success/20 px-2 py-0.5 rounded-full">
-                  <svg
-                    className="w-3 h-3"
-                    fill="currentColor"
-                    viewBox="0 0 20 20"
-                    aria-hidden="true"
-                  >
-                    <path
-                      fillRule="evenodd"
-                      d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                      clipRule="evenodd"
-                    />
-                  </svg>
-                  Winner
-                </span>
-              )}
-              {isEliminated && (
-                <span className="inline-flex items-center gap-1 text-xs font-semibold text-error bg-error/20 px-2 py-0.5 rounded-full">
-                  <svg
-                    className="w-3 h-3"
-                    fill="currentColor"
-                    viewBox="0 0 20 20"
-                    aria-hidden="true"
-                  >
-                    <path
-                      fillRule="evenodd"
-                      d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
-                      clipRule="evenodd"
-                    />
-                  </svg>
-                  Eliminated
-                </span>
-              )}
-            </div>
+                  <path
+                    fillRule="evenodd"
+                    d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+                Winner
+              </span>
+            )}
+            {isEliminated && (
+              <span className="inline-flex items-center gap-1 text-xs font-semibold text-error bg-error/20 px-2 py-0.5 rounded-full">
+                <svg
+                  className="w-3 h-3"
+                  fill="currentColor"
+                  viewBox="0 0 20 20"
+                  aria-hidden="true"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+                Eliminated
+              </span>
+            )}
           </div>
-        </label>
+        </div>
 
         {isSelected && !isDisabled && !isEliminated && (
           <div
@@ -258,8 +285,8 @@ function ContestantOption({
         )}
       </div>
 
-      {/* Description - moved outside label */}
-      <div className="ml-11 mt-1">
+      {/* Description */}
+      <div className="ml-8 mt-1">
         <p
           id={`${inputId}-description`}
           className={`text-sm ${
