@@ -108,15 +108,6 @@ export default function CampaignHomePage() {
     <div className="space-y-12">
       {/* Hero Section - March Madness Theme */}
       <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-primary via-primary-light to-secondary p-8 md:p-12 lg:p-16">
-        {/* Background pattern */}
-        <div
-          className="absolute inset-0 opacity-10"
-          style={{
-            backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23000000' fill-opacity='1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
-          }}
-          aria-hidden="true"
-        />
-
         <div className="relative z-10 max-w-3xl">
           <span className="inline-flex items-center gap-2 bg-white/20 backdrop-blur-sm text-text font-semibold px-4 py-2 rounded-full text-sm mb-6">
             {activeRound ? `${activeRound.name} - Voting Open!` : 'Tournament Active'}
@@ -272,7 +263,7 @@ export default function CampaignHomePage() {
       {/* Current Contestants - sorted by seed ascending */}
       {data && data.rounds[0] && (
         <section aria-labelledby="contestants-heading">
-          <div className="flex items-center justify-between mb-8">
+          <div className="flex flex-wrap items-center justify-between gap-4 mb-8">
             <div>
               <h2
                 id="contestants-heading"
@@ -282,7 +273,7 @@ export default function CampaignHomePage() {
               </h2>
               <p className="text-text/60 mt-1">Meet this year&apos;s contenders — who will cut down the nets?</p>
             </div>
-            <span className="text-sm font-medium text-text/60 bg-surface px-3 py-1 rounded-full">
+            <span className="text-sm font-medium text-text/60 bg-surface px-3 py-1 rounded-full whitespace-nowrap">
               {contestantCount} Competitors
             </span>
           </div>
@@ -334,7 +325,7 @@ export default function CampaignHomePage() {
             {data.rounds.map((round) => (
               <div
                 key={round.roundNumber}
-                className={`flex items-center gap-4 p-4 rounded-xl transition-colors ${
+                className={`flex flex-wrap sm:flex-nowrap items-center gap-4 p-4 rounded-xl transition-colors ${
                   round.isActive
                     ? 'bg-primary/20 border-2 border-primary'
                     : round.isComplete
@@ -368,7 +359,7 @@ export default function CampaignHomePage() {
                   )}
                 </div>
 
-                <div className="flex-1">
+                <div className="flex-1 min-w-0">
                   <h3 className="font-semibold text-text">{round.name}</h3>
                   <p className="text-sm text-text/60">
                     {round.matchups.length} matchup
@@ -380,18 +371,18 @@ export default function CampaignHomePage() {
                 {round.isActive && (
                   <Link
                     href={`/${campaignSlug}/vote`}
-                    className="btn btn-primary text-sm"
+                    className="btn btn-primary text-sm flex-shrink-0 w-full sm:w-auto"
                   >
                     Vote Now
                   </Link>
                 )}
                 {round.isComplete && (
-                  <span className="text-sm font-medium text-success flex items-center gap-1">
+                  <span className="text-sm font-medium text-success flex items-center gap-1 flex-shrink-0 whitespace-nowrap">
                     <span>✓</span> Complete
                   </span>
                 )}
                 {!round.isActive && !round.isComplete && (
-                  <span className="text-sm text-text/50">Upcoming</span>
+                  <span className="text-sm text-text/50 flex-shrink-0 whitespace-nowrap">Upcoming</span>
                 )}
               </div>
             ))}
