@@ -2,9 +2,31 @@ import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { decrypt } from '@/lib/encryption';
 
+// Middleware to check admin session
+async function checkAdminSession(request: NextRequest) {
+  const sessionToken = request.cookies.get('session_token')?.value;
+  if (!sessionToken) return null;
+
+  const session = await prisma.session.findUnique({
+    where: { token: sessionToken },
+    include: { user: true },
+  });
+
+  if (!session || session.expiresAt < new Date() || !session.user.isActive) {
+    return null;
+  }
+
+  return session.user;
+}
+
 // GET /api/admin/submissions - Get all vote submissions with decrypted voter info
 export async function GET(request: NextRequest) {
   try {
+    const user = await checkAdminSession(request);
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     // Get all votes with related data
     const votes = await prisma.vote.findMany({
       include: {
