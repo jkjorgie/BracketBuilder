@@ -1,7 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/db';
-import { requireAuth } from '@/lib/auth';
 import { logAudit } from '@/lib/audit';
+
+// Middleware to check admin session
+async function checkAdminSession(request: NextRequest) {
+  const sessionToken = request.cookies.get('session_token')?.value;
+  if (!sessionToken) return null;
+
+  const session = await prisma.session.findUnique({
+    where: { token: sessionToken },
+    include: { user: true },
+  });
+
+  if (!session || session.expiresAt < new Date() || !session.user.isActive) {
+    return null;
+  }
+
+  return session.user;
+}
 
 // GET /api/config - Get active site configuration (public)
 export async function GET() {
@@ -39,10 +55,11 @@ export async function GET() {
 
 // PATCH /api/config - Update site configuration (admin only)
 export async function PATCH(request: NextRequest) {
-  const authError = requireAuth(request);
-  if (authError) return authError;
-
   try {
+    const user = await checkAdminSession(request);
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
     const body = await request.json();
 
     // Find active config

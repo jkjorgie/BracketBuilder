@@ -1,18 +1,35 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma, { TransactionClient } from '@/lib/db';
-import { requireAuth } from '@/lib/auth';
 import { logAudit } from '@/lib/audit';
+
+// Middleware to check admin session
+async function checkAdminSession(request: NextRequest) {
+  const sessionToken = request.cookies.get('session_token')?.value;
+  if (!sessionToken) return null;
+
+  const session = await prisma.session.findUnique({
+    where: { token: sessionToken },
+    include: { user: true },
+  });
+
+  if (!session || session.expiresAt < new Date() || !session.user.isActive) {
+    return null;
+  }
+
+  return session.user;
+}
 
 // GET /api/campaigns - Get all campaigns (public) or with details (admin)
 export async function GET(request: NextRequest) {
   try {
-    const isAdmin = request.headers.get('Authorization');
     const includeDetails = request.nextUrl.searchParams.get('details') === 'true';
 
-    if (includeDetails && isAdmin) {
-      // Admin view with full details
-      const authError = requireAuth(request);
-      if (authError) return authError;
+    if (includeDetails) {
+      // Admin view with full details - check session
+      const user = await checkAdminSession(request);
+      if (!user) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      }
 
       const campaigns = await prisma.campaign.findMany({
         include: {
@@ -66,10 +83,11 @@ export async function GET(request: NextRequest) {
 
 // POST /api/campaigns - Create a new campaign (admin only)
 export async function POST(request: NextRequest) {
-  const authError = requireAuth(request);
-  if (authError) return authError;
-
   try {
+    const user = await checkAdminSession(request);
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
     const body = await request.json();
     const { name, description, slug, isDemo, startDate, endDate, competitors } = body;
 

@@ -1,18 +1,35 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma, { TransactionClient } from '@/lib/db';
-import { requireAuth } from '@/lib/auth';
 import { logAudit } from '@/lib/audit';
 
 type RouteContext = {
   params: Promise<{ slug: string }>;
 };
 
+// Middleware to check admin session
+async function checkAdminSession(request: NextRequest) {
+  const sessionToken = request.cookies.get('session_token')?.value;
+  if (!sessionToken) return null;
+
+  const session = await prisma.session.findUnique({
+    where: { token: sessionToken },
+    include: { user: true },
+  });
+
+  if (!session || session.expiresAt < new Date() || !session.user.isActive) {
+    return null;
+  }
+
+  return session.user;
+}
+
 // POST /api/campaigns/[slug]/rounds - Initialize rounds for a campaign (admin only)
 export async function POST(request: NextRequest, context: RouteContext) {
-  const authError = requireAuth(request);
-  if (authError) return authError;
-
   try {
+    const user = await checkAdminSession(request);
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
     const { slug } = await context.params;
 
     const campaign = await prisma.campaign.findUnique({

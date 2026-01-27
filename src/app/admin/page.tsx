@@ -491,6 +491,15 @@ export default function AdminPage() {
           </div>
         ) : (
           <>
+            {/* Campaign Selector - shown on all tabs except Campaigns and Submissions */}
+            {activeTab !== 'campaigns' && activeTab !== 'submissions' && campaigns.length > 0 && (
+              <CampaignSelector
+                campaigns={campaigns}
+                selectedCampaign={selectedCampaign}
+                onSelectCampaign={setSelectedCampaign}
+              />
+            )}
+
             {/* Campaigns Tab */}
             {activeTab === 'campaigns' && (
               <CampaignsTab
@@ -509,6 +518,8 @@ export default function AdminPage() {
                 onToggleActive={handleToggleRoundActive}
                 onUpdateRound={handleUpdateRound}
                 onAutoAdvance={handleAutoAdvanceRound}
+                onRefresh={fetchCampaigns}
+                showMessage={showMessage}
               />
             )}
 
@@ -517,6 +528,8 @@ export default function AdminPage() {
               <MatchupsTab
                 campaign={selectedCampaign}
                 onSetWinner={handleSetWinner}
+                onRefresh={fetchCampaigns}
+                showMessage={showMessage}
               />
             )}
 
@@ -530,7 +543,7 @@ export default function AdminPage() {
             )}
 
             {/* Vote Sources Tab */}
-            {activeTab === 'sources' && (
+            {activeTab === 'sources' && selectedCampaign && (
               <VoteSourcesTab
                 sources={voteSources}
                 selectedCampaign={selectedCampaign}
@@ -548,9 +561,32 @@ export default function AdminPage() {
               />
             )}
 
-            {(activeTab === 'rounds' || activeTab === 'matchups' || activeTab === 'competitors') && !selectedCampaign && (
+            {(activeTab === 'rounds' || activeTab === 'matchups' || activeTab === 'competitors' || activeTab === 'sources') && !selectedCampaign && (
               <div className="text-center py-12">
-                <p className="text-gray-400">Select a campaign first from the Campaigns tab</p>
+                <div className="inline-flex items-center justify-center w-16 h-16 bg-gray-700 rounded-full mb-4">
+                  <span className="text-2xl">📋</span>
+                </div>
+                <h2 className="text-xl font-semibold text-white mb-2">No Campaign Selected</h2>
+                <p className="text-gray-400 max-w-md mx-auto mb-6">
+                  Please select a campaign to manage its {activeTab}.
+                </p>
+                {campaigns.length > 0 ? (
+                  <select
+                    value=""
+                    onChange={(e) => {
+                      const campaign = campaigns.find(c => c.id === e.target.value);
+                      if (campaign) setSelectedCampaign(campaign);
+                    }}
+                    className="px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-[#FF9E18]"
+                  >
+                    <option value="">Select a campaign...</option>
+                    {campaigns.map((c) => (
+                      <option key={c.id} value={c.id}>{c.name}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <p className="text-gray-500 text-sm">No campaigns available. Create one in the Campaigns tab.</p>
+                )}
               </div>
             )}
           </>
@@ -858,20 +894,168 @@ function RoundsTab({
   onToggleActive,
   onUpdateRound,
   onAutoAdvance,
+  onRefresh,
+  showMessage,
 }: {
   campaign: Campaign;
   onToggleActive: (r: Round) => void;
   onUpdateRound: (id: string, updates: Partial<Round>) => void;
   onAutoAdvance: (roundId: string) => void;
+  onRefresh: () => void;
+  showMessage: (type: 'success' | 'error', text: string) => void;
 }) {
+  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [formData, setFormData] = useState({
+    name: '',
+    startDate: '',
+    endDate: '',
+  });
+  const [saving, setSaving] = useState(false);
+
+  const nextRoundNumber = campaign.rounds.length > 0 
+    ? Math.max(...campaign.rounds.map(r => r.roundNumber)) + 1 
+    : 1;
+
+  const resetForm = () => {
+    setFormData({ name: '', startDate: '', endDate: '' });
+    setShowCreateForm(false);
+  };
+
+  const handleCreateRound = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSaving(true);
+
+    try {
+      const res = await fetch('/api/admin/rounds', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          campaignId: campaign.id,
+          rounds: [{
+            roundNumber: nextRoundNumber,
+            name: formData.name || `Round ${nextRoundNumber}`,
+            startDate: formData.startDate || null,
+            endDate: formData.endDate || null,
+            isActive: false,
+          }],
+        }),
+      });
+
+      if (res.ok) {
+        showMessage('success', 'Round created');
+        resetForm();
+        onRefresh();
+      } else {
+        const data = await res.json();
+        showMessage('error', data.error || 'Failed to create round');
+      }
+    } catch {
+      showMessage('error', 'Failed to create round');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h2 className="text-xl font-semibold text-white">Rounds for: {campaign.name}</h2>
+          <h2 className="text-xl font-semibold text-white">Rounds</h2>
           <p className="text-gray-400 text-sm">Manage round activation and progression</p>
         </div>
+        <div className="flex gap-2">
+          <button
+            onClick={() => setShowCreateForm(true)}
+            className="px-4 py-2 bg-[#FF9E18] hover:bg-[#e88f15] text-white rounded-lg text-sm font-medium"
+          >
+            + Add Round
+          </button>
+          <button
+            onClick={onRefresh}
+            className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg text-sm"
+          >
+            🔄 Refresh
+          </button>
+        </div>
       </div>
+
+      {/* Create Form Modal */}
+      {showCreateForm && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={resetForm}>
+          <div className="bg-gray-800 rounded-xl p-6 max-w-md w-full mx-4 border border-gray-700" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-lg font-semibold text-white mb-4">
+              Create Round {nextRoundNumber}
+            </h3>
+            <form onSubmit={handleCreateRound} className="space-y-4">
+              <div>
+                <label className="block text-sm text-gray-400 mb-1">Round Name</label>
+                <input
+                  type="text"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white text-sm"
+                  placeholder={`e.g., Round ${nextRoundNumber}, Quarterfinals, Finals`}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm text-gray-400 mb-1">Start Date</label>
+                  <input
+                    type="datetime-local"
+                    value={formData.startDate}
+                    onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
+                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm text-gray-400 mb-1">End Date</label>
+                  <input
+                    type="datetime-local"
+                    value={formData.endDate}
+                    onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
+                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white text-sm"
+                  />
+                </div>
+              </div>
+              <p className="text-xs text-gray-500">
+                Note: Empty matchups will be created for this round. Add competitors to matchups in the Matchups tab.
+              </p>
+              <div className="flex gap-3 justify-end pt-2">
+                <button
+                  type="button"
+                  onClick={resetForm}
+                  className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg text-sm"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={saving}
+                  className="px-4 py-2 bg-[#FF9E18] hover:bg-[#e88f15] text-white rounded-lg text-sm font-medium disabled:opacity-50"
+                >
+                  {saving ? 'Creating...' : 'Create Round'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {campaign.rounds.length === 0 && (
+        <div className="text-center py-12 bg-gray-800 rounded-xl border border-gray-700">
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-gray-700 rounded-full mb-4">
+            <span className="text-2xl">📅</span>
+          </div>
+          <h3 className="text-lg font-semibold text-white mb-2">No Rounds Yet</h3>
+          <p className="text-gray-400 mb-4">Create your first round to start organizing matchups.</p>
+          <button
+            onClick={() => setShowCreateForm(true)}
+            className="px-4 py-2 bg-[#FF9E18] hover:bg-[#e88f15] text-white rounded-lg text-sm font-medium"
+          >
+            + Create First Round
+          </button>
+        </div>
+      )}
 
       <div className="space-y-4">
         {campaign.rounds.map((round) => (
@@ -968,16 +1152,210 @@ function RoundsTab({
 function MatchupsTab({
   campaign,
   onSetWinner,
+  onRefresh,
+  showMessage,
 }: {
   campaign: Campaign;
   onSetWinner: (matchupId: string, winnerId: string) => void;
+  onRefresh: () => void;
+  showMessage: (type: 'success' | 'error', text: string) => void;
 }) {
+  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [editingMatchup, setEditingMatchup] = useState<Matchup | null>(null);
+  const [selectedRoundId, setSelectedRoundId] = useState<string>(campaign.rounds[0]?.id || '');
+  const [formData, setFormData] = useState({
+    competitor1Id: '',
+    competitor2Id: '',
+  });
+  const [saving, setSaving] = useState(false);
+
+  const resetForm = () => {
+    setFormData({ competitor1Id: '', competitor2Id: '' });
+    setShowCreateForm(false);
+    setEditingMatchup(null);
+  };
+
+  const handleEditMatchup = (matchup: Matchup) => {
+    setEditingMatchup(matchup);
+    setFormData({
+      competitor1Id: matchup.competitor1?.id || '',
+      competitor2Id: matchup.competitor2?.id || '',
+    });
+    setShowCreateForm(true);
+  };
+
+  const handleDeleteMatchup = async (matchupId: string) => {
+    if (!confirm('Delete this matchup? This will also delete all associated votes.')) return;
+
+    try {
+      const res = await fetch(`/api/admin/matchups?id=${matchupId}`, { method: 'DELETE' });
+      if (res.ok) {
+        showMessage('success', 'Matchup deleted');
+        onRefresh();
+      } else {
+        const data = await res.json();
+        showMessage('error', data.error || 'Failed to delete matchup');
+      }
+    } catch {
+      showMessage('error', 'Failed to delete matchup');
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSaving(true);
+
+    try {
+      if (editingMatchup) {
+        // Update existing matchup
+        const res = await fetch('/api/admin/matchups', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            id: editingMatchup.id,
+            competitor1Id: formData.competitor1Id || null,
+            competitor2Id: formData.competitor2Id || null,
+          }),
+        });
+
+        if (res.ok) {
+          showMessage('success', 'Matchup updated');
+          resetForm();
+          onRefresh();
+        } else {
+          const data = await res.json();
+          showMessage('error', data.error || 'Failed to update matchup');
+        }
+      } else {
+        // Create new matchup
+        const res = await fetch('/api/admin/matchups', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            roundId: selectedRoundId,
+            campaignId: campaign.id,
+            competitor1Id: formData.competitor1Id || null,
+            competitor2Id: formData.competitor2Id || null,
+          }),
+        });
+
+        if (res.ok) {
+          showMessage('success', 'Matchup created');
+          resetForm();
+          onRefresh();
+        } else {
+          const data = await res.json();
+          showMessage('error', data.error || 'Failed to create matchup');
+        }
+      }
+    } catch {
+      showMessage('error', 'Failed to save matchup');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Get available (non-eliminated) competitors for selection
+  const availableCompetitors = campaign.competitors.filter(c => !c.isEliminated);
+
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-xl font-semibold text-white">Matchups for: {campaign.name}</h2>
-        <p className="text-gray-400 text-sm">View votes and manually set winners</p>
+      <div className="flex justify-between items-center">
+        <div>
+          <h2 className="text-xl font-semibold text-white">Matchups</h2>
+          <p className="text-gray-400 text-sm">Create, edit, and manage matchups</p>
+        </div>
+        <div className="flex gap-2">
+          <button
+            onClick={() => { resetForm(); setShowCreateForm(true); }}
+            className="px-4 py-2 bg-[#FF9E18] hover:bg-[#e88f15] text-white rounded-lg text-sm font-medium"
+          >
+            + New Matchup
+          </button>
+          <button
+            onClick={onRefresh}
+            className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg text-sm"
+          >
+            🔄 Refresh
+          </button>
+        </div>
       </div>
+
+      {/* Create/Edit Form Modal */}
+      {showCreateForm && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={resetForm}>
+          <div className="bg-gray-800 rounded-xl p-6 max-w-md w-full mx-4 border border-gray-700" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-lg font-semibold text-white mb-4">
+              {editingMatchup ? 'Edit Matchup' : 'Create New Matchup'}
+            </h3>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              {!editingMatchup && (
+                <div>
+                  <label className="block text-sm text-gray-400 mb-1">Round</label>
+                  <select
+                    value={selectedRoundId}
+                    onChange={(e) => setSelectedRoundId(e.target.value)}
+                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white text-sm"
+                    required
+                  >
+                    {campaign.rounds.map((round) => (
+                      <option key={round.id} value={round.id}>
+                        Round {round.roundNumber}: {round.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+              <div>
+                <label className="block text-sm text-gray-400 mb-1">Competitor 1</label>
+                <select
+                  value={formData.competitor1Id}
+                  onChange={(e) => setFormData({ ...formData, competitor1Id: e.target.value })}
+                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white text-sm"
+                >
+                  <option value="">-- Select or leave as TBD --</option>
+                  {campaign.competitors.map((comp) => (
+                    <option key={comp.id} value={comp.id} disabled={comp.id === formData.competitor2Id}>
+                      #{comp.seed} {comp.name} {comp.isEliminated ? '(Eliminated)' : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm text-gray-400 mb-1">Competitor 2</label>
+                <select
+                  value={formData.competitor2Id}
+                  onChange={(e) => setFormData({ ...formData, competitor2Id: e.target.value })}
+                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white text-sm"
+                >
+                  <option value="">-- Select or leave as TBD --</option>
+                  {campaign.competitors.map((comp) => (
+                    <option key={comp.id} value={comp.id} disabled={comp.id === formData.competitor1Id}>
+                      #{comp.seed} {comp.name} {comp.isEliminated ? '(Eliminated)' : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex gap-3 justify-end pt-2">
+                <button
+                  type="button"
+                  onClick={resetForm}
+                  className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg text-sm"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={saving}
+                  className="px-4 py-2 bg-[#FF9E18] hover:bg-[#e88f15] text-white rounded-lg text-sm font-medium disabled:opacity-50"
+                >
+                  {saving ? 'Saving...' : (editingMatchup ? 'Update' : 'Create')}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Instructions Banner */}
       <div className="bg-[#FF9E18]/10 border border-[#FF9E18]/30 rounded-xl p-4">
@@ -994,125 +1372,166 @@ function MatchupsTab({
         </div>
       </div>
 
+      {campaign.rounds.length === 0 && (
+        <div className="text-center py-12 text-gray-400">
+          <p>No rounds found. Create rounds first in the Rounds tab.</p>
+        </div>
+      )}
+
       {campaign.rounds.map((round) => (
         <div key={round.id} className="space-y-4">
-          <h3 className="text-lg font-medium text-white flex items-center gap-2">
-            Round {round.roundNumber}: {round.name}
-            {round.isActive && (
-              <span className="px-2 py-0.5 bg-[#FF9E18]/20 text-[#FF9E18] text-xs rounded-full">
-                Active
-              </span>
-            )}
-            {round.isComplete && (
-              <span className="px-2 py-0.5 bg-green-500/20 text-green-400 text-xs rounded-full">
-                Complete
-              </span>
-            )}
-          </h3>
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-medium text-white flex items-center gap-2">
+              Round {round.roundNumber}: {round.name}
+              {round.isActive && (
+                <span className="px-2 py-0.5 bg-[#FF9E18]/20 text-[#FF9E18] text-xs rounded-full">
+                  Active
+                </span>
+              )}
+              {round.isComplete && (
+                <span className="px-2 py-0.5 bg-green-500/20 text-green-400 text-xs rounded-full">
+                  Complete
+                </span>
+              )}
+            </h3>
+            <button
+              onClick={() => { resetForm(); setSelectedRoundId(round.id); setShowCreateForm(true); }}
+              className="px-3 py-1 bg-gray-700 hover:bg-gray-600 text-white rounded text-sm"
+            >
+              + Add to Round
+            </button>
+          </div>
 
-          <div className="grid gap-4">
-            {round.matchups.map((matchup) => (
-              <div
-                key={matchup.id}
-                className="bg-gray-800 rounded-xl p-4 border border-gray-700"
-              >
-                {/* Matchup status indicator */}
-                {!matchup.winner && matchup.competitor1 && matchup.competitor2 && (
-                  <div className="text-center text-xs text-yellow-400 mb-3 flex items-center justify-center gap-2">
-                    <span className="animate-pulse">●</span>
-                    Click a competitor below to declare them the winner
+          {round.matchups.length === 0 ? (
+            <div className="bg-gray-800 rounded-xl p-6 border border-gray-700 text-center text-gray-400">
+              No matchups in this round yet. Click &quot;Add to Round&quot; to create one.
+            </div>
+          ) : (
+            <div className="grid gap-4">
+              {round.matchups.map((matchup) => (
+                <div
+                  key={matchup.id}
+                  className="bg-gray-800 rounded-xl p-4 border border-gray-700"
+                >
+                  {/* Matchup header with edit/delete */}
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-xs text-gray-500">Matchup #{matchup.matchupIndex + 1}</span>
+                    <div className="flex gap-2">
+                      {!matchup.winner && (
+                        <button
+                          onClick={() => handleEditMatchup(matchup)}
+                          className="px-2 py-1 bg-gray-700 hover:bg-gray-600 text-white rounded text-xs"
+                        >
+                          Edit
+                        </button>
+                      )}
+                      <button
+                        onClick={() => handleDeleteMatchup(matchup.id)}
+                        className="px-2 py-1 bg-red-500/20 text-red-400 hover:bg-red-500/30 rounded text-xs"
+                      >
+                        Delete
+                      </button>
+                    </div>
                   </div>
-                )}
-                {matchup.winner && (
-                  <div className="text-center text-xs text-green-400 mb-3 flex items-center justify-center gap-2">
-                    <span>✓</span>
-                    Winner decided
-                  </div>
-                )}
 
-                <div className="flex items-center justify-between gap-4">
-                  {/* Competitor 1 */}
-                  <div className="flex-1">
-                    <button
-                      onClick={() => matchup.competitor1 && !matchup.winner && onSetWinner(matchup.id, matchup.competitor1.id)}
-                      disabled={!!matchup.winner || !matchup.competitor1}
-                      className={`w-full p-4 rounded-lg text-left transition-all ${
-                        matchup.winner?.id === matchup.competitor1?.id
-                          ? 'bg-green-500/20 border-2 border-green-500 shadow-lg shadow-green-500/20'
-                          : matchup.winner
-                          ? 'bg-gray-700/50 border-2 border-transparent opacity-50'
-                          : 'bg-gray-700 hover:bg-[#FF9E18]/20 hover:border-[#FF9E18] border-2 border-gray-600 cursor-pointer hover:scale-[1.02]'
-                      } disabled:cursor-not-allowed transition-transform`}
-                      title={!matchup.winner && matchup.competitor1 ? `Click to declare ${matchup.competitor1.name} as winner` : ''}
-                    >
-                      {matchup.competitor1 ? (
-                        <div>
-                          <div className="flex items-center gap-2 mb-1">
-                            <span className="text-xs font-bold text-[#00B2E3]">#{matchup.competitor1.seed}</span>
-                            <span className="font-semibold text-white">{matchup.competitor1.name}</span>
-                            {matchup.winner?.id === matchup.competitor1.id && (
-                              <span className="text-green-400">🏆</span>
+                  {/* Matchup status indicator */}
+                  {!matchup.winner && matchup.competitor1 && matchup.competitor2 && (
+                    <div className="text-center text-xs text-yellow-400 mb-3 flex items-center justify-center gap-2">
+                      <span className="animate-pulse">●</span>
+                      Click a competitor below to declare them the winner
+                    </div>
+                  )}
+                  {matchup.winner && (
+                    <div className="text-center text-xs text-green-400 mb-3 flex items-center justify-center gap-2">
+                      <span>✓</span>
+                      Winner decided
+                    </div>
+                  )}
+
+                  <div className="flex items-center justify-between gap-4">
+                    {/* Competitor 1 */}
+                    <div className="flex-1">
+                      <button
+                        onClick={() => matchup.competitor1 && !matchup.winner && onSetWinner(matchup.id, matchup.competitor1.id)}
+                        disabled={!!matchup.winner || !matchup.competitor1}
+                        className={`w-full p-4 rounded-lg text-left transition-all ${
+                          matchup.winner?.id === matchup.competitor1?.id
+                            ? 'bg-green-500/20 border-2 border-green-500 shadow-lg shadow-green-500/20'
+                            : matchup.winner
+                            ? 'bg-gray-700/50 border-2 border-transparent opacity-50'
+                            : 'bg-gray-700 hover:bg-[#FF9E18]/20 hover:border-[#FF9E18] border-2 border-gray-600 cursor-pointer hover:scale-[1.02]'
+                        } disabled:cursor-not-allowed transition-transform`}
+                        title={!matchup.winner && matchup.competitor1 ? `Click to declare ${matchup.competitor1.name} as winner` : ''}
+                      >
+                        {matchup.competitor1 ? (
+                          <div>
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="text-xs font-bold text-[#00B2E3]">#{matchup.competitor1.seed}</span>
+                              <span className="font-semibold text-white">{matchup.competitor1.name}</span>
+                              {matchup.winner?.id === matchup.competitor1.id && (
+                                <span className="text-green-400">🏆</span>
+                              )}
+                            </div>
+                            <div className="text-2xl font-bold text-[#FF9E18]">
+                              {matchup.competitor1Votes} <span className="text-sm text-gray-400">votes</span>
+                            </div>
+                            {!matchup.winner && (
+                              <div className="text-xs text-gray-500 mt-2">
+                                Click to declare winner →
+                              </div>
                             )}
                           </div>
-                          <div className="text-2xl font-bold text-[#FF9E18]">
-                            {matchup.competitor1Votes} <span className="text-sm text-gray-400">votes</span>
-                          </div>
-                          {!matchup.winner && (
-                            <div className="text-xs text-gray-500 mt-2">
-                              Click to declare winner →
+                        ) : (
+                          <span className="text-gray-500">TBD</span>
+                        )}
+                      </button>
+                    </div>
+
+                    {/* VS */}
+                    <div className="text-gray-500 font-bold text-lg px-2">VS</div>
+
+                    {/* Competitor 2 */}
+                    <div className="flex-1">
+                      <button
+                        onClick={() => matchup.competitor2 && !matchup.winner && onSetWinner(matchup.id, matchup.competitor2.id)}
+                        disabled={!!matchup.winner || !matchup.competitor2}
+                        className={`w-full p-4 rounded-lg text-left transition-all ${
+                          matchup.winner?.id === matchup.competitor2?.id
+                            ? 'bg-green-500/20 border-2 border-green-500 shadow-lg shadow-green-500/20'
+                            : matchup.winner
+                            ? 'bg-gray-700/50 border-2 border-transparent opacity-50'
+                            : 'bg-gray-700 hover:bg-[#FF9E18]/20 hover:border-[#FF9E18] border-2 border-gray-600 cursor-pointer hover:scale-[1.02]'
+                        } disabled:cursor-not-allowed transition-transform`}
+                        title={!matchup.winner && matchup.competitor2 ? `Click to declare ${matchup.competitor2.name} as winner` : ''}
+                      >
+                        {matchup.competitor2 ? (
+                          <div>
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="text-xs font-bold text-[#00B2E3]">#{matchup.competitor2.seed}</span>
+                              <span className="font-semibold text-white">{matchup.competitor2.name}</span>
+                              {matchup.winner?.id === matchup.competitor2.id && (
+                                <span className="text-green-400">🏆</span>
+                              )}
                             </div>
-                          )}
-                        </div>
-                      ) : (
-                        <span className="text-gray-500">TBD</span>
-                      )}
-                    </button>
-                  </div>
-
-                  {/* VS */}
-                  <div className="text-gray-500 font-bold text-lg px-2">VS</div>
-
-                  {/* Competitor 2 */}
-                  <div className="flex-1">
-                    <button
-                      onClick={() => matchup.competitor2 && !matchup.winner && onSetWinner(matchup.id, matchup.competitor2.id)}
-                      disabled={!!matchup.winner || !matchup.competitor2}
-                      className={`w-full p-4 rounded-lg text-left transition-all ${
-                        matchup.winner?.id === matchup.competitor2?.id
-                          ? 'bg-green-500/20 border-2 border-green-500 shadow-lg shadow-green-500/20'
-                          : matchup.winner
-                          ? 'bg-gray-700/50 border-2 border-transparent opacity-50'
-                          : 'bg-gray-700 hover:bg-[#FF9E18]/20 hover:border-[#FF9E18] border-2 border-gray-600 cursor-pointer hover:scale-[1.02]'
-                      } disabled:cursor-not-allowed transition-transform`}
-                      title={!matchup.winner && matchup.competitor2 ? `Click to declare ${matchup.competitor2.name} as winner` : ''}
-                    >
-                      {matchup.competitor2 ? (
-                        <div>
-                          <div className="flex items-center gap-2 mb-1">
-                            <span className="text-xs font-bold text-[#00B2E3]">#{matchup.competitor2.seed}</span>
-                            <span className="font-semibold text-white">{matchup.competitor2.name}</span>
-                            {matchup.winner?.id === matchup.competitor2.id && (
-                              <span className="text-green-400">🏆</span>
+                            <div className="text-2xl font-bold text-[#FF9E18]">
+                              {matchup.competitor2Votes} <span className="text-sm text-gray-400">votes</span>
+                            </div>
+                            {!matchup.winner && (
+                              <div className="text-xs text-gray-500 mt-2">
+                                ← Click to declare winner
+                              </div>
                             )}
                           </div>
-                          <div className="text-2xl font-bold text-[#FF9E18]">
-                            {matchup.competitor2Votes} <span className="text-sm text-gray-400">votes</span>
-                          </div>
-                          {!matchup.winner && (
-                            <div className="text-xs text-gray-500 mt-2">
-                              ← Click to declare winner
-                            </div>
-                          )}
-                        </div>
-                      ) : (
-                        <span className="text-gray-500">TBD</span>
-                      )}
-                    </button>
+                        ) : (
+                          <span className="text-gray-500">TBD</span>
+                        )}
+                      </button>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
       ))}
     </div>
@@ -1180,15 +1599,13 @@ function VoteSourcesTab({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedCampaign) return;
-    
     setSaving(true);
 
     try {
       const method = editing ? 'PUT' : 'POST';
       const body = editing 
         ? { id: editing.id, ...formData }
-        : { ...formData, campaignId: selectedCampaign.id };
+        : { ...formData, campaignId: selectedCampaign!.id };
       
       const res = await fetch('/api/admin/vote-sources', {
         method,
@@ -1215,26 +1632,11 @@ function VoteSourcesTab({
     }
   };
 
-  // Show message if no campaign selected
-  if (!selectedCampaign) {
-    return (
-      <div className="text-center py-12">
-        <div className="inline-flex items-center justify-center w-16 h-16 bg-gray-700 rounded-full mb-4">
-          <span className="text-2xl">🔗</span>
-        </div>
-        <h2 className="text-xl font-semibold text-white mb-2">Select a Campaign</h2>
-        <p className="text-gray-400 max-w-md mx-auto">
-          Vote sources are campaign-specific. Please select a campaign from the Campaigns tab first to manage its vote sources.
-        </p>
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h2 className="text-xl font-semibold text-white">Vote Sources for: {selectedCampaign.name}</h2>
+          <h2 className="text-xl font-semibold text-white">Vote Sources</h2>
           <p className="text-gray-400 text-sm">Manage voting link sources for this campaign</p>
         </div>
         <div className="flex gap-2">
@@ -1408,15 +1810,18 @@ function VoteSourcesTab({
       {/* URL Reference */}
       <div className="bg-gray-800 rounded-xl p-6 border border-gray-700">
         <h3 className="text-lg font-semibold text-white mb-4">📋 Quick Reference - Vote URLs</h3>
-        <p className="text-gray-400 text-sm mb-4">Vote URLs for {selectedCampaign.name}:</p>
+        <p className="text-gray-400 text-sm mb-4">Active vote URLs for this campaign:</p>
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-2 font-mono text-sm">
           {sources.filter((s) => s.isActive).map((source) => (
             <div key={source.id} className="flex items-center gap-2">
               <span className={`w-2 h-2 rounded-full ${source.isActive ? 'bg-green-400' : 'bg-red-400'}`} />
-              <code className="text-gray-300">/{selectedCampaign.slug}/vote?source={source.code}</code>
+              <code className="text-gray-300">/{selectedCampaign!.slug}/vote?source={source.code}</code>
             </div>
           ))}
         </div>
+        {sources.filter((s) => s.isActive).length === 0 && (
+          <p className="text-gray-500 text-sm">No active vote sources. Create one above.</p>
+        )}
       </div>
     </div>
   );
@@ -1511,7 +1916,7 @@ function CompetitorsTab({
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h2 className="text-xl font-semibold text-white">Competitors for: {campaign.name}</h2>
+          <h2 className="text-xl font-semibold text-white">Competitors</h2>
           <p className="text-gray-400 text-sm">Manage competitors (product features) in this campaign</p>
         </div>
         <div className="flex gap-2">
@@ -1855,6 +2260,66 @@ function SubmissionsTab({
         >
           📥 Export to CSV
         </button>
+      </div>
+    </div>
+  );
+}
+
+// Campaign Selector Component - appears on intra-campaign tabs
+function CampaignSelector({
+  campaigns,
+  selectedCampaign,
+  onSelectCampaign,
+}: {
+  campaigns: Campaign[];
+  selectedCampaign: Campaign | null;
+  onSelectCampaign: (c: Campaign) => void;
+}) {
+  return (
+    <div className="bg-gray-800/50 border border-gray-700 rounded-xl p-4 mb-6">
+      <div className="flex flex-wrap items-center gap-4">
+        <div className="flex items-center gap-2">
+          <span className="text-gray-400 text-sm font-medium">Campaign:</span>
+          <select
+            value={selectedCampaign?.id || ''}
+            onChange={(e) => {
+              const campaign = campaigns.find(c => c.id === e.target.value);
+              if (campaign) onSelectCampaign(campaign);
+            }}
+            className="px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white font-medium focus:outline-none focus:ring-2 focus:ring-[#FF9E18] min-w-[200px]"
+          >
+            {campaigns.map((c) => (
+              <option key={c.id} value={c.id}>{c.name}</option>
+            ))}
+          </select>
+        </div>
+        
+        {selectedCampaign && (
+          <div className="flex flex-wrap items-center gap-3 text-sm">
+            {selectedCampaign.isActive && (
+              <span className="px-2 py-1 bg-green-500/20 text-green-400 rounded-full text-xs font-medium">
+                Active
+              </span>
+            )}
+            {selectedCampaign.isDemo && (
+              <span className="px-2 py-1 bg-purple-500/20 text-purple-400 rounded-full text-xs font-medium">
+                Demo
+              </span>
+            )}
+            <span className="text-gray-500">
+              <code className="text-[#00B2E3]">/{selectedCampaign.slug}</code>
+            </span>
+            <span className="text-gray-500">
+              {selectedCampaign.rounds.length} rounds
+            </span>
+            <span className="text-gray-500">
+              {selectedCampaign.competitors.length} competitors
+            </span>
+            <span className="text-gray-500">
+              {selectedCampaign._count.votes} votes
+            </span>
+          </div>
+        )}
       </div>
     </div>
   );

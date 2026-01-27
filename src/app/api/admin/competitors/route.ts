@@ -1,14 +1,32 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/db';
-import { requireAuth } from '@/lib/auth';
 import { logAudit } from '@/lib/audit';
+
+// Middleware to check admin session
+async function checkAdminSession(request: NextRequest) {
+  const sessionToken = request.cookies.get('session_token')?.value;
+  if (!sessionToken) return null;
+
+  const session = await prisma.session.findUnique({
+    where: { token: sessionToken },
+    include: { user: true },
+  });
+
+  if (!session || session.expiresAt < new Date() || !session.user.isActive) {
+    return null;
+  }
+
+  return session.user;
+}
 
 // GET /api/admin/competitors - Get competitors for a campaign
 export async function GET(request: NextRequest) {
-  const authError = requireAuth(request);
-  if (authError) return authError;
-
   try {
+    const user = await checkAdminSession(request);
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const { searchParams } = new URL(request.url);
     const campaignId = searchParams.get('campaignId');
 
@@ -36,10 +54,12 @@ export async function GET(request: NextRequest) {
 
 // POST /api/admin/competitors - Create a new competitor
 export async function POST(request: NextRequest) {
-  const authError = requireAuth(request);
-  if (authError) return authError;
-
   try {
+    const user = await checkAdminSession(request);
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const body = await request.json();
     const { campaignId, name, description, seed, imageUrl } = body;
 
@@ -90,10 +110,12 @@ export async function POST(request: NextRequest) {
 
 // PUT /api/admin/competitors - Update a competitor
 export async function PUT(request: NextRequest) {
-  const authError = requireAuth(request);
-  if (authError) return authError;
-
   try {
+    const user = await checkAdminSession(request);
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const body = await request.json();
     const { id, name, description, seed, imageUrl, isEliminated } = body;
 
@@ -140,10 +162,12 @@ export async function PUT(request: NextRequest) {
 
 // DELETE /api/admin/competitors - Delete a competitor
 export async function DELETE(request: NextRequest) {
-  const authError = requireAuth(request);
-  if (authError) return authError;
-
   try {
+    const user = await checkAdminSession(request);
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
 

@@ -1,11 +1,27 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/db';
-import { requireAuth } from '@/lib/auth';
 import { logAudit } from '@/lib/audit';
 
 type RouteContext = {
   params: Promise<{ slug: string }>;
 };
+
+// Middleware to check admin session
+async function checkAdminSession(request: NextRequest) {
+  const sessionToken = request.cookies.get('session_token')?.value;
+  if (!sessionToken) return null;
+
+  const session = await prisma.session.findUnique({
+    where: { token: sessionToken },
+    include: { user: true },
+  });
+
+  if (!session || session.expiresAt < new Date() || !session.user.isActive) {
+    return null;
+  }
+
+  return session.user;
+}
 
 // GET /api/campaigns/[slug] - Get a specific campaign with all data needed for voting/results
 export async function GET(request: NextRequest, context: RouteContext) {
@@ -159,10 +175,12 @@ export async function GET(request: NextRequest, context: RouteContext) {
 
 // PATCH /api/campaigns/[slug] - Update a campaign (admin only)
 export async function PATCH(request: NextRequest, context: RouteContext) {
-  const authError = requireAuth(request);
-  if (authError) return authError;
-
   try {
+    const user = await checkAdminSession(request);
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const { slug } = await context.params;
     const body = await request.json();
 
@@ -201,10 +219,12 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
 
 // DELETE /api/campaigns/[slug] - Delete a campaign (admin only)
 export async function DELETE(request: NextRequest, context: RouteContext) {
-  const authError = requireAuth(request);
-  if (authError) return authError;
-
   try {
+    const user = await checkAdminSession(request);
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const { slug } = await context.params;
 
     const campaign = await prisma.campaign.findUnique({ where: { slug } });

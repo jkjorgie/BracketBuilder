@@ -162,7 +162,7 @@ export async function PUT(request: NextRequest) {
   }
 }
 
-// POST /api/admin/matchups/auto-advance - Auto-set winners based on vote counts
+// POST /api/admin/matchups - Create a new matchup OR auto-advance round
 export async function POST(request: NextRequest) {
   try {
     const user = await checkAdminSession(request);
@@ -171,125 +171,229 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { roundId } = body;
+    
+    // Check if this is a create matchup request or auto-advance request
+    if (body.roundId && !body.campaignId) {
+      // This is an auto-advance request
+      return handleAutoAdvance(body.roundId, user);
+    }
+    
+    // This is a create matchup request
+    const { roundId, campaignId, matchupIndex, competitor1Id, competitor2Id } = body;
 
-    if (!roundId) {
-      return NextResponse.json({ error: 'roundId is required' }, { status: 400 });
+    if (!roundId || !campaignId) {
+      return NextResponse.json(
+        { error: 'roundId and campaignId are required' },
+        { status: 400 }
+      );
     }
 
+    // Verify round exists and belongs to campaign
     const round = await prisma.round.findUnique({
       where: { id: roundId },
-      include: {
-        matchups: {
-          include: {
-            competitor1: true,
-            competitor2: true,
-          },
-        },
-        campaign: true,
-      },
+      include: { matchups: true },
     });
 
-    if (!round) {
+    if (!round || round.campaignId !== campaignId) {
       return NextResponse.json({ error: 'Round not found' }, { status: 404 });
     }
 
-    const results = [];
+    // Determine matchup index (next available if not provided)
+    const nextIndex = matchupIndex ?? round.matchups.length;
 
-    for (const matchup of round.matchups) {
-      if (matchup.winnerId) {
-        results.push({ matchupId: matchup.id, status: 'already_decided' });
-        continue;
-      }
-
-      if (!matchup.competitor1Id || !matchup.competitor2Id) {
-        results.push({ matchupId: matchup.id, status: 'incomplete_matchup' });
-        continue;
-      }
-
-      // Determine winner based on votes
-      let winnerId: string;
-      if (matchup.competitor1Votes > matchup.competitor2Votes) {
-        winnerId = matchup.competitor1Id;
-      } else if (matchup.competitor2Votes > matchup.competitor1Votes) {
-        winnerId = matchup.competitor2Id;
-      } else {
-        // Tie - favor higher seed
-        winnerId = (matchup.competitor1?.seed || 99) < (matchup.competitor2?.seed || 99)
-          ? matchup.competitor1Id
-          : matchup.competitor2Id;
-      }
-
-      const loserId = winnerId === matchup.competitor1Id 
-        ? matchup.competitor2Id 
-        : matchup.competitor1Id;
-
-      // Update matchup with winner
-      await prisma.matchup.update({
-        where: { id: matchup.id },
-        data: { winnerId },
-      });
-
-      // Mark loser as eliminated
-      await prisma.competitor.update({
-        where: { id: loserId },
-        data: {
-          isEliminated: true,
-          eliminatedInRound: round.roundNumber,
-        },
-      });
-
-      // Advance winner to next round
-      const nextRound = await prisma.round.findFirst({
-        where: {
-          campaignId: round.campaignId,
-          roundNumber: round.roundNumber + 1,
-        },
-        include: { matchups: { orderBy: { matchupIndex: 'asc' } } },
-      });
-
-      if (nextRound && nextRound.matchups.length > 0) {
-        const nextMatchupIndex = Math.floor(matchup.matchupIndex / 2);
-        const nextMatchup = nextRound.matchups[nextMatchupIndex];
-
-        if (nextMatchup) {
-          const isFirstOfPair = matchup.matchupIndex % 2 === 0;
-          await prisma.matchup.update({
-            where: { id: nextMatchup.id },
-            data: isFirstOfPair
-              ? { competitor1Id: winnerId }
-              : { competitor2Id: winnerId },
-          });
-        }
-      }
-
-      results.push({
-        matchupId: matchup.id,
-        status: 'winner_set',
-        winnerId,
-        votes: {
-          competitor1: matchup.competitor1Votes,
-          competitor2: matchup.competitor2Votes,
-        },
-      });
-    }
-
-    // Mark round as complete
-    await prisma.round.update({
-      where: { id: roundId },
-      data: { isComplete: true, isActive: false },
+    const matchup = await prisma.matchup.create({
+      data: {
+        roundId,
+        campaignId,
+        matchupIndex: nextIndex,
+        competitor1Id: competitor1Id || null,
+        competitor2Id: competitor2Id || null,
+      },
+      include: {
+        competitor1: true,
+        competitor2: true,
+        round: true,
+      },
     });
 
-    await logAudit('ROUND_COMPLETED', 'Round', roundId, {
-      results,
+    await logAudit('MATCHUP_CREATED', 'Matchup', matchup.id, {
+      roundId,
+      campaignId,
+      matchupIndex: nextIndex,
+      competitor1Id,
+      competitor2Id,
       userId: user.id,
     });
 
-    return NextResponse.json({ success: true, results });
+    return NextResponse.json({ matchup }, { status: 201 });
   } catch (error) {
-    console.error('Error auto-advancing matchups:', error);
+    console.error('Error in matchups POST:', error);
     return NextResponse.json(
-      { error: 'Failed to auto-advance matchups' },
+      { error: 'Failed to process request' },
+      { status: 500 }
+    );
+  }
+}
+
+// Helper function for auto-advance
+async function handleAutoAdvance(roundId: string, user: { id: string }) {
+  const round = await prisma.round.findUnique({
+    where: { id: roundId },
+    include: {
+      matchups: {
+        include: {
+          competitor1: true,
+          competitor2: true,
+        },
+      },
+      campaign: true,
+    },
+  });
+
+  if (!round) {
+    return NextResponse.json({ error: 'Round not found' }, { status: 404 });
+  }
+
+  const results = [];
+
+  for (const matchup of round.matchups) {
+    if (matchup.winnerId) {
+      results.push({ matchupId: matchup.id, status: 'already_decided' });
+      continue;
+    }
+
+    if (!matchup.competitor1Id || !matchup.competitor2Id) {
+      results.push({ matchupId: matchup.id, status: 'incomplete_matchup' });
+      continue;
+    }
+
+    // Determine winner based on votes
+    let winnerId: string;
+    if (matchup.competitor1Votes > matchup.competitor2Votes) {
+      winnerId = matchup.competitor1Id;
+    } else if (matchup.competitor2Votes > matchup.competitor1Votes) {
+      winnerId = matchup.competitor2Id;
+    } else {
+      // Tie - favor higher seed
+      winnerId = (matchup.competitor1?.seed || 99) < (matchup.competitor2?.seed || 99)
+        ? matchup.competitor1Id
+        : matchup.competitor2Id;
+    }
+
+    const loserId = winnerId === matchup.competitor1Id 
+      ? matchup.competitor2Id 
+      : matchup.competitor1Id;
+
+    // Update matchup with winner
+    await prisma.matchup.update({
+      where: { id: matchup.id },
+      data: { winnerId },
+    });
+
+    // Mark loser as eliminated
+    await prisma.competitor.update({
+      where: { id: loserId },
+      data: {
+        isEliminated: true,
+        eliminatedInRound: round.roundNumber,
+      },
+    });
+
+    // Advance winner to next round
+    const nextRound = await prisma.round.findFirst({
+      where: {
+        campaignId: round.campaignId,
+        roundNumber: round.roundNumber + 1,
+      },
+      include: { matchups: { orderBy: { matchupIndex: 'asc' } } },
+    });
+
+    if (nextRound && nextRound.matchups.length > 0) {
+      const nextMatchupIndex = Math.floor(matchup.matchupIndex / 2);
+      const nextMatchup = nextRound.matchups[nextMatchupIndex];
+
+      if (nextMatchup) {
+        const isFirstOfPair = matchup.matchupIndex % 2 === 0;
+        await prisma.matchup.update({
+          where: { id: nextMatchup.id },
+          data: isFirstOfPair
+            ? { competitor1Id: winnerId }
+            : { competitor2Id: winnerId },
+        });
+      }
+    }
+
+    results.push({
+      matchupId: matchup.id,
+      status: 'winner_set',
+      winnerId,
+      votes: {
+        competitor1: matchup.competitor1Votes,
+        competitor2: matchup.competitor2Votes,
+      },
+    });
+  }
+
+  // Mark round as complete
+  await prisma.round.update({
+    where: { id: roundId },
+    data: { isComplete: true, isActive: false },
+  });
+
+  await logAudit('ROUND_COMPLETED', 'Round', roundId, {
+    results,
+    userId: user.id,
+  });
+
+  return NextResponse.json({ success: true, results });
+}
+
+// DELETE /api/admin/matchups - Delete a matchup
+export async function DELETE(request: NextRequest) {
+  try {
+    const user = await checkAdminSession(request);
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const { searchParams } = request.nextUrl;
+    const id = searchParams.get('id');
+
+    if (!id) {
+      return NextResponse.json({ error: 'id is required' }, { status: 400 });
+    }
+
+    const matchup = await prisma.matchup.findUnique({
+      where: { id },
+      include: { _count: { select: { votes: true } } },
+    });
+
+    if (!matchup) {
+      return NextResponse.json({ error: 'Matchup not found' }, { status: 404 });
+    }
+
+    // Warn if matchup has votes
+    if (matchup._count.votes > 0) {
+      // Still allow deletion, but log it
+      await logAudit('MATCHUP_DELETED_WITH_VOTES', 'Matchup', id, {
+        voteCount: matchup._count.votes,
+        userId: user.id,
+      });
+    }
+
+    // Delete votes first (cascade doesn't always work with some setups)
+    await prisma.vote.deleteMany({ where: { matchupId: id } });
+    await prisma.matchup.delete({ where: { id } });
+
+    await logAudit('MATCHUP_DELETED', 'Matchup', id, {
+      userId: user.id,
+    });
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error('Error deleting matchup:', error);
+    return NextResponse.json(
+      { error: 'Failed to delete matchup' },
       { status: 500 }
     );
   }
