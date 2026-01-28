@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
+import { storeVotingSource } from '@/lib/votingSource';
 
 interface Contestant {
   id: string;
@@ -46,11 +47,20 @@ interface CampaignData {
 export default function CampaignHomePage() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const campaignSlug = params.campaignSlug as string;
 
   const [data, setData] = useState<CampaignData | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
+
+  // Capture and store voting source if present in URL
+  useEffect(() => {
+    const source = searchParams.get('source');
+    if (source) {
+      storeVotingSource(source);
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     async function fetchCampaign() {

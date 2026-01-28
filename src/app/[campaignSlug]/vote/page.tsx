@@ -13,6 +13,7 @@ import {
   saveSubmission,
   StoredBracketSubmission,
 } from '@/lib/storage';
+import { storeVotingSource, getStoredVotingSource } from '@/lib/votingSource';
 
 interface CampaignData {
   campaign: {
@@ -38,7 +39,11 @@ function VotePageContent() {
   const router = useRouter();
   const campaignSlug = params.campaignSlug as string;
   const searchParams = useSearchParams();
-  const source = searchParams.get('source') || 'direct';
+  
+  // Get source from URL first, then fall back to session storage, then 'direct'
+  const urlSource = searchParams.get('source');
+  const storedSource = getStoredVotingSource();
+  const source = urlSource || storedSource;
 
   const [campaignData, setCampaignData] = useState<CampaignData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -52,6 +57,13 @@ function VotePageContent() {
   const [userEmail, setUserEmail] = useState('');
   const [isLoaded, setIsLoaded] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+
+  // Store voting source when it's provided in the URL or retrieved from storage
+  useEffect(() => {
+    if (source) {
+      storeVotingSource(source);
+    }
+  }, [source]);
 
   // Check if user is admin
   useEffect(() => {
