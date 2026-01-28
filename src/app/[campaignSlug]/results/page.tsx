@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { Contestant } from '@/types/bracket';
+import { storeVotingSource } from '@/lib/votingSource';
 
 interface MatchupData {
   id: string;
@@ -49,12 +50,21 @@ interface ResultsData {
 export default function ResultsPage() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const campaignSlug = params.campaignSlug as string;
 
   const [data, setData] = useState<ResultsData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
+
+  // Capture and store voting source if present in URL
+  useEffect(() => {
+    const source = searchParams.get('source');
+    if (source) {
+      storeVotingSource(source);
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     async function fetchData() {
