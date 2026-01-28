@@ -8,7 +8,7 @@ export function Footer() {
     >
       <div className="container py-8">
         <p className="text-sm text-text/60 text-center">
-          © {currentYear} Jay Jorgensen. All rights reserved.
+          © {currentYear} Gideon Taylor Consulting, LLC. All rights reserved.
         </p>
       </div>
     </footer>

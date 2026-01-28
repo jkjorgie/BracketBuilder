@@ -100,11 +100,10 @@ export function SuccessModal({ isOpen, onClose, roundName, campaignSlug }: Succe
           id="success-modal-title"
           className="text-2xl font-bold text-text text-center mb-2"
         >
-          Bracket Submitted!
+          Votes Submitted!
         </h2>
         <p className="text-text/70 text-center mb-6">
-          Your {roundName} picks have been recorded. Check back tomorrow to vote
-          on the next round!
+          Your {roundName} picks have been recorded! Want to vote again? Swing by the GT booth or catch us at another session for more voting links.
         </p>
 
         {/* Decorative confetti */}

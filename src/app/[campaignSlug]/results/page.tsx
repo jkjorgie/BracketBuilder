@@ -144,8 +144,7 @@ export default function ResultsPage() {
           {data.campaign.name} - Results
         </h1>
         <p className="text-lg text-text/70">
-          Track the progress of the competition and see which features are
-          advancing.
+          See which features are winning votes and advancing toward becoming GT's next development project!
         </p>
       </div>
 
@@ -157,12 +156,15 @@ export default function ResultsPage() {
               🏆
             </span>
           </div>
-          <h2 className="text-2xl font-bold text-white mb-2">Champion</h2>
+          <h2 className="text-2xl font-bold text-white mb-2">Winning Feature — Coming Soon!</h2>
           <p className="text-3xl font-bold text-white">
             {data.champion.name}
           </p>
           <p className="text-white/80 mt-2 max-w-md mx-auto">
             {data.champion.description}
+          </p>
+          <p className="text-white/90 mt-3 font-medium">
+            GT will be building this feature next!
           </p>
         </div>
       )}
@@ -218,7 +220,7 @@ export default function ResultsPage() {
       {/* Voting statistics */}
       <div className="mt-8 grid sm:grid-cols-3 gap-4">
         <StatCard
-          label="Total Votes"
+          label="Total Matchup Votes"
           value={data.statistics.totalVotes.toString()}
           icon={
             <svg
@@ -256,7 +258,7 @@ export default function ResultsPage() {
           }
         />
         <StatCard
-          label="Unique Voters"
+          label="Brackets Submitted"
           value={data.statistics.uniqueVoters.toString()}
           icon={
             <svg

@@ -79,7 +79,7 @@ export default function CampaignHomePage() {
       <div className="flex items-center justify-center min-h-[60vh]">
         <div className="text-center">
           <div className="animate-spin w-12 h-12 border-4 border-primary border-t-transparent rounded-full mx-auto mb-4" />
-          <p className="text-text/60">Loading bracket...</p>
+          <p className="text-text/60">Loading tournament...</p>
         </div>
       </div>
     );
@@ -140,13 +140,13 @@ export default function CampaignHomePage() {
                   d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"
                 />
               </svg>
-              Fill Out Your Bracket
+              Vote for Your Favorites
             </Link>
             <Link
               href={`/${campaignSlug}/results`}
               className="btn bg-white/90 text-text hover:bg-white text-lg px-8 py-4"
             >
-              View Standings
+              View Results
             </Link>
           </div>
         </div>
@@ -193,14 +193,14 @@ export default function CampaignHomePage() {
           How the Tournament Works
         </h2>
         <p className="text-text/60 text-center mb-8 max-w-2xl mx-auto">
-          Just like March Madness — fill out your bracket, watch the matchups unfold, and help crown a champion!
+          Vote for your favorite features each round! The winning feature will be built by GT — your votes decide what gets developed!
         </p>
 
         <div className="grid md:grid-cols-3 gap-6">
           <StepCard
             number={1}
             title="Get Your Game Day Pass"
-            description="Visit our booth each day for a vote, plus earn bonus votes at every GT session. More appearances = more influence on the final four!"
+            description="Visit our booth each day for a vote, plus earn bonus votes at every GT session. More appearances = more influence on the next feature GT will build!"
             icon={
               <svg
                 className="w-8 h-8"
@@ -219,8 +219,8 @@ export default function CampaignHomePage() {
           />
           <StepCard
             number={2}
-            title="Pick Your Winners"
-            description="Study the matchups and make your picks! Each feature competes head-to-head — choose wisely, your bracket is at stake."
+            title="Vote for Your Favorites"
+            description="Review each matchup and vote for the features you want GT to build! Each vote helps your favorite advance to the next round."
             icon={
               <svg
                 className="w-8 h-8"
@@ -239,8 +239,8 @@ export default function CampaignHomePage() {
           />
           <StepCard
             number={3}
-            title="Advance to the Next Round"
-            description="Return each day as the bracket narrows! Quarterfinals → Semifinals → Championship. Will your picks make the Final Four?"
+            title="Keep Voting Each Round"
+            description="Come to the booth each day and to as many GT sessions as you can to cast additional votes! Your continued support helps your favorite features advance all the way to becoming GT's next development project."
             icon={
               <svg
                 className="w-8 h-8"
@@ -271,7 +271,7 @@ export default function CampaignHomePage() {
               >
                 The Tournament Field
               </h2>
-              <p className="text-text/60 mt-1">Meet this year&apos;s contenders — who will cut down the nets?</p>
+              <p className="text-text/60 mt-1">Which feature should GT build next? Vote for your favorites!</p>
             </div>
             <span className="text-sm font-medium text-text/60 bg-surface px-3 py-1 rounded-full whitespace-nowrap">
               {contestantCount} Competitors
@@ -394,17 +394,17 @@ export default function CampaignHomePage() {
       <section className="text-center py-8">
         <div className="text-5xl mb-4" aria-hidden="true">🏆</div>
         <h2 className="text-2xl md:text-3xl font-bold text-text mb-4">
-          Ready to Fill Out Your Bracket?
+          Ready to Vote?
         </h2>
         <p className="text-text/70 mb-6 max-w-xl mx-auto">
-          The tournament waits for no one! Cast your votes and help decide which feature gets crowned champion. 
-          Will there be upsets? Cinderella stories? Only your votes can tell!
+          Your votes matter! Help GT decide which feature to build next by voting for your favorites. 
+          The champion feature will become GT's next development project!
         </p>
         <Link
           href={`/${campaignSlug}/vote`}
           className="btn btn-primary text-lg px-8 py-4 inline-flex"
         >
-          Enter the Tournament
+          Cast Your Votes
           <svg
             className="w-5 h-5"
             fill="none"

@@ -153,7 +153,7 @@ export function SubmissionForm({
             />
           </svg>
           <p className="text-sm text-text">
-            Select a winner for each matchup to complete your bracket. You have{' '}
+            Vote for your favorite feature in each matchup. You have{' '}
             <strong>{totalMatchups - selectedCount}</strong> remaining.
           </p>
         </div>
@@ -200,7 +200,7 @@ export function SubmissionForm({
             />
           </svg>
           <p className="text-sm text-text">
-            <strong>Already submitted!</strong> You&apos;ve already submitted your bracket for this link.
+            <strong>Already submitted!</strong> You&apos;ve already submitted your votes for this link.
           </p>
         </div>
       )}
@@ -348,7 +348,7 @@ export function SubmissionForm({
                   d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
                 />
               </svg>
-              Submit Bracket
+              Submit Your Votes
             </>
           )}
         </button>

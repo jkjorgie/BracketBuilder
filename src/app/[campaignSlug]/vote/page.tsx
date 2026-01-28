@@ -97,7 +97,7 @@ function VotePageContent() {
         }
         
         if (!voteSource.isActive) {
-          setSourceError('This voting link is not currently active. Please use a different link or contact an administrator.');
+          setSourceError('Oops! This link has timed out. Swing by the GT booth or catch us at another session to snag a fresh voting link!');
           return;
         }
 
@@ -109,7 +109,7 @@ function VotePageContent() {
             return;
           }
           if (voteSource.validUntil && now > new Date(voteSource.validUntil)) {
-            setSourceError('This voting link has expired. Please use a different link or contact an administrator.');
+            setSourceError('Oops! This link has timed out. Swing by the GT booth or catch us at another session to snag a fresh voting link!');
             return;
           }
         }
@@ -249,7 +249,7 @@ function VotePageContent() {
           return;
         } else if (result.inactiveSource) {
           // Inactive source
-          setSourceError(result.error || 'This voting link is not currently active.');
+          setSourceError(result.error || 'Oops! This link has timed out. Swing by the GT booth or catch us at another session to snag a fresh voting link!');
           return;
         } else {
           throw new Error(result.error || 'Failed to submit vote');
@@ -404,31 +404,25 @@ function VotePageContent() {
       {/* Source error message */}
       {sourceError && (
         <div
-          className="bg-error/10 border border-error/30 rounded-lg p-4 mb-8"
+          className="bg-text/5 border border-text/20 rounded-lg p-4 mb-8"
           role="alert"
         >
           <div className="flex items-start gap-3">
             <svg
-              className="w-5 h-5 text-error flex-shrink-0 mt-0.5"
+              className="w-5 h-5 text-text/50 flex-shrink-0 mt-0.5"
               fill="currentColor"
               viewBox="0 0 20 20"
               aria-hidden="true"
             >
               <path
                 fillRule="evenodd"
-                d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
                 clipRule="evenodd"
               />
             </svg>
             <div>
-              <p className="font-medium text-text">Voting Link Issue</p>
+              <p className="font-medium text-text">Hold Up! ⏱️</p>
               <p className="text-sm text-text/70 mt-1">{sourceError}</p>
-              <a
-                href={`/${campaignSlug}/vote`}
-                className="text-sm text-error font-medium hover:underline mt-2 inline-block"
-              >
-                Try the main voting page →
-              </a>
             </div>
           </div>
         </div>
@@ -455,11 +449,10 @@ function VotePageContent() {
             </svg>
             <div>
               <p className="font-medium text-text">
-                You&apos;ve already submitted your bracket for this link!
+                You&apos;ve already submitted your votes for this link!
               </p>
               <p className="text-sm text-text/70 mt-1">
-                Your selections are shown below. Come back tomorrow to vote in
-                the next round.
+                Your votes are shown below. Want to vote again? Swing by the GT booth or catch us at another session to get a fresh voting link!
               </p>
             </div>
           </div>
