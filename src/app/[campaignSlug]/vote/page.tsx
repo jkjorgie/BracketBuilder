@@ -39,11 +39,6 @@ function VotePageContent() {
   const router = useRouter();
   const campaignSlug = params.campaignSlug as string;
   const searchParams = useSearchParams();
-  
-  // Get source from URL first, then fall back to session storage, then 'direct'
-  const urlSource = searchParams.get('source');
-  const storedSource = getStoredVotingSource();
-  const source = urlSource || storedSource;
 
   const [campaignData, setCampaignData] = useState<CampaignData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -57,13 +52,21 @@ function VotePageContent() {
   const [userEmail, setUserEmail] = useState('');
   const [isLoaded, setIsLoaded] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [source, setSource] = useState<string>('direct');
 
-  // Store voting source when it's provided in the URL or retrieved from storage
+  // Initialize source from URL or session storage
   useEffect(() => {
-    if (source) {
-      storeVotingSource(source);
+    const urlSource = searchParams.get('source');
+    if (urlSource) {
+      // URL source takes priority
+      setSource(urlSource);
+      storeVotingSource(urlSource);
+    } else {
+      // Fall back to stored source
+      const storedSource = getStoredVotingSource();
+      setSource(storedSource);
     }
-  }, [source]);
+  }, [searchParams]);
 
   // Check if user is admin
   useEffect(() => {
