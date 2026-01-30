@@ -2331,5 +2331,6 @@ function formatDate(dateString: string): string {
     day: 'numeric',
     hour: 'numeric',
     minute: '2-digit',
+    timeZone: 'UTC', // Force UTC interpretation to match admin input
   });
 }

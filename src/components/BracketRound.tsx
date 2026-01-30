@@ -126,6 +126,7 @@ function formatDateRange(startDate: string, endDate?: string): string {
     weekday: 'long',
     month: 'long',
     day: 'numeric',
+    timeZone: 'UTC', // Force UTC interpretation to match admin input
   };
 
   if (!endDate || startDate === endDate) {

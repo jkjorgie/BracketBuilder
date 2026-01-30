@@ -461,10 +461,15 @@ function StepCard({
 }
 
 function formatDate(dateString: string): string {
+  // Parse date without timezone conversion to avoid date shifting
+  // dateString is in ISO format from database (e.g., "2026-01-26T00:00:00.000Z")
   const date = new Date(dateString);
+  
+  // Use UTC methods to ensure consistent date display
   return date.toLocaleDateString('en-US', {
     weekday: 'short',
     month: 'short',
     day: 'numeric',
+    timeZone: 'UTC', // Force UTC interpretation
   });
 }
