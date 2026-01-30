@@ -176,40 +176,61 @@ function VotePageContent() {
   // Eliminated contestants from API response
   const eliminatedContestants = new Set(campaignData?.eliminatedCompetitorIds || []);
 
-  // Load user data and check submission status on mount
+  // Load user data and check submission status
   useEffect(() => {
     if (!campaignData) return;
 
-    // Load user profile
-    const profile = getUserProfile();
-    if (profile) {
-      setUserName(profile.name);
-      setUserEmail(profile.email);
-    }
+    // Use a flag to prevent multiple setState calls
+    let isMounted = true;
 
-    // Check if already submitted for this source (local storage check)
-    const existingSubmission = getSubmission(
-      campaignData.campaign.slug,
-      campaignData.campaign.currentRound,
-      source
-    );
-    if (existingSubmission) {
-      setHasSubmitted(true);
-      setSelections(existingSubmission.selections);
-      setUserName(existingSubmission.name);
-      setUserEmail(existingSubmission.email);
-    } else {
-      // Try to load previous selections for quick resubmit
-      const savedSelections = getCurrentSelections(
+    const checkSubmission = () => {
+      // Load user profile
+      const profile = getUserProfile();
+      
+      // Check if already submitted for this source (local storage check)
+      const existingSubmission = getSubmission(
         campaignData.campaign.slug,
-        campaignData.campaign.currentRound
+        campaignData.campaign.currentRound,
+        source
       );
-      if (savedSelections) {
-        setSelections(savedSelections);
-      }
-    }
 
-    setIsLoaded(true);
+      // Batch state updates to prevent flashing
+      if (isMounted) {
+        if (existingSubmission) {
+          setHasSubmitted(true);
+          setSelections(existingSubmission.selections);
+          setUserName(existingSubmission.name);
+          setUserEmail(existingSubmission.email);
+          setSourceError(null);
+        } else {
+          setHasSubmitted(false);
+          // Load profile if available
+          if (profile) {
+            setUserName(profile.name);
+            setUserEmail(profile.email);
+          }
+          // Try to load previous selections for quick resubmit
+          const savedSelections = getCurrentSelections(
+            campaignData.campaign.slug,
+            campaignData.campaign.currentRound
+          );
+          if (savedSelections) {
+            setSelections(savedSelections);
+          } else {
+            setSelections({});
+          }
+        }
+        setIsLoaded(true);
+      }
+    };
+
+    // Use a small delay to batch the check with other effects
+    const timeoutId = setTimeout(checkSubmission, 0);
+
+    return () => {
+      isMounted = false;
+      clearTimeout(timeoutId);
+    };
   }, [campaignData, source]);
 
   const handleSelectWinner = (matchupId: string, contestantId: string) => {

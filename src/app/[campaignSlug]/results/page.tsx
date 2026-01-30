@@ -421,19 +421,20 @@ function ContestantSlot({
       `}
     >
       {contestant ? (
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 min-w-0">
           {contestant.seed && (
-            <span className="text-xs font-bold text-secondary">
+            <span className="text-xs font-bold text-secondary flex-shrink-0">
               {contestant.seed}
             </span>
           )}
           <span
-            className={`text-sm truncate flex-1 ${isWinner ? 'font-bold text-success' : 'text-text'}`}
+            className={`text-sm md:truncate flex-1 min-w-0 ${isWinner ? 'font-bold text-success' : 'text-text'}`}
+            title={contestant.name}
           >
             {contestant.name}
           </span>
           {showVotes && (
-            <span className="text-xs text-text/60 font-medium">
+            <span className="text-xs text-text/60 font-medium flex-shrink-0">
               {votes}
             </span>
           )}
@@ -482,7 +483,7 @@ function MobileMatchup({
           isWinner={winner?.id === contestant1?.id}
         />
         {showVotes && (
-          <span className="text-sm font-medium text-text/60">
+          <span className="text-sm font-medium text-text/60 flex-shrink-0">
             {competitor1Votes}
           </span>
         )}
@@ -494,7 +495,7 @@ function MobileMatchup({
           isWinner={winner?.id === contestant2?.id}
         />
         {showVotes && (
-          <span className="text-sm font-medium text-text/60">
+          <span className="text-sm font-medium text-text/60 flex-shrink-0">
             {competitor2Votes}
           </span>
         )}
@@ -516,14 +517,19 @@ function MobileContestant({
 
   return (
     <div
-      className={`flex items-center gap-2 ${isWinner ? 'text-success font-semibold' : ''}`}
+      className={`flex items-center gap-2 min-w-0 flex-1 ${isWinner ? 'text-success font-semibold' : ''}`}
     >
       {contestant.seed && (
-        <span className="text-xs font-bold text-secondary">
+        <span className="text-xs font-bold text-secondary flex-shrink-0">
           {contestant.seed}
         </span>
       )}
-      <span className="text-sm truncate">{contestant.name}</span>
+      <span 
+        className="text-sm md:truncate min-w-0"
+        title={contestant.name}
+      >
+        {contestant.name}
+      </span>
       {isWinner && (
         <svg
           className="w-4 h-4 text-success flex-shrink-0"
