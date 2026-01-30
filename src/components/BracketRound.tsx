@@ -134,5 +134,15 @@ function formatDateRange(startDate: string, endDate?: string): string {
   }
 
   const end = new Date(endDate);
+  
+  // Calculate difference in days
+  const diffMs = end.getTime() - start.getTime();
+  const diffDays = diffMs / (1000 * 60 * 60 * 24);
+  
+  // If 1 day or less, only show start date
+  if (diffDays <= 1) {
+    return start.toLocaleDateString('en-US', options);
+  }
+
   return `${start.toLocaleDateString('en-US', options)} - ${end.toLocaleDateString('en-US', options)}`;
 }
