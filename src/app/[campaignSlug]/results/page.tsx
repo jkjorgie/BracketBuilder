@@ -410,7 +410,7 @@ function ContestantSlot({
   return (
     <div
       className={`
-        w-48 px-3 py-2 rounded border-2 transition-colors
+        w-48 md:w-56 lg:w-64 xl:w-72 px-3 py-2 rounded border-2 transition-colors
         ${
           isWinner
             ? 'bg-success/10 border-success'
@@ -428,7 +428,7 @@ function ContestantSlot({
             </span>
           )}
           <span
-            className={`text-sm md:truncate flex-1 min-w-0 ${isWinner ? 'font-bold text-success' : 'text-text'}`}
+            className={`text-sm truncate md:whitespace-normal md:break-words flex-1 min-w-0 ${isWinner ? 'font-bold text-success' : 'text-text'}`}
             title={contestant.name}
           >
             {contestant.name}
@@ -525,7 +525,7 @@ function MobileContestant({
         </span>
       )}
       <span 
-        className="text-sm md:truncate min-w-0"
+        className="text-sm break-words min-w-0"
         title={contestant.name}
       >
         {contestant.name}
