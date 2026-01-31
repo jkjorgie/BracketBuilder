@@ -57,16 +57,18 @@ function VotePageContent() {
   // Initialize source from URL or session storage
   useEffect(() => {
     const urlSource = searchParams.get('source');
-    if (urlSource) {
-      // URL source takes priority
-      setSource(urlSource);
-      storeVotingSource(urlSource);
-    } else {
-      // Fall back to stored source
-      const storedSource = getStoredVotingSource();
-      setSource(storedSource);
+    const newSource = urlSource || getStoredVotingSource();
+    
+    // Only update if source actually changed
+    if (newSource !== source) {
+      // Reset isLoaded to prevent showing stale data during transition
+      setIsLoaded(false);
+      setSource(newSource);
+      if (urlSource) {
+        storeVotingSource(urlSource);
+      }
     }
-  }, [searchParams]);
+  }, [searchParams, source]);
 
   // Check if user is admin
   useEffect(() => {

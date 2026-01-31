@@ -1,6 +1,10 @@
-import { NextRequest, NextResponse } from 'next/server';
-import prisma from '@/lib/db';
-import { verifyPassword, generateSessionToken, getSessionExpiry } from '@/lib/password';
+import { NextRequest, NextResponse } from "next/server";
+import prisma from "@/lib/db";
+import {
+  verifyPassword,
+  generateSessionToken,
+  getSessionExpiry,
+} from "@/lib/password";
 
 export async function POST(request: NextRequest) {
   try {
@@ -9,8 +13,8 @@ export async function POST(request: NextRequest) {
 
     if (!email || !password) {
       return NextResponse.json(
-        { error: 'Email and password are required' },
-        { status: 400 }
+        { error: "Email and password are required" },
+        { status: 400 },
       );
     }
 
@@ -21,8 +25,8 @@ export async function POST(request: NextRequest) {
 
     if (!user || !user.isActive) {
       return NextResponse.json(
-        { error: 'Invalid email or password' },
-        { status: 401 }
+        { error: "Invalid email or password" },
+        { status: 401 },
       );
     }
 
@@ -30,8 +34,8 @@ export async function POST(request: NextRequest) {
     const isValid = await verifyPassword(password, user.passwordHash);
     if (!isValid) {
       return NextResponse.json(
-        { error: 'Invalid email or password' },
-        { status: 401 }
+        { error: "Invalid email or password" },
+        { status: 401 },
       );
     }
 
@@ -65,20 +69,17 @@ export async function POST(request: NextRequest) {
     });
 
     // Set HTTP-only cookie
-    response.cookies.set('session_token', token, {
+    response.cookies.set("session_token", token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
       expires: expiresAt,
-      path: '/',
+      path: "/",
     });
 
     return response;
   } catch (error) {
-    console.error('Login error:', error);
-    return NextResponse.json(
-      { error: 'Login failed' },
-      { status: 500 }
-    );
+    console.error("Login error:", error);
+    return NextResponse.json({ error: "Login failed" }, { status: 500 });
   }
 }
