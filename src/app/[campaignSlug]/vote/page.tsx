@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, Suspense } from 'react';
+import { useState, useEffect, useCallback, Suspense, useRef } from 'react';
 import { useSearchParams, useParams, useRouter } from 'next/navigation';
 import { BracketRound, SubmissionForm, SuccessModal } from '@/components';
 import { Contestant, Round } from '@/types/bracket';
@@ -13,7 +13,7 @@ import {
   saveSubmission,
   StoredBracketSubmission,
 } from '@/lib/storage';
-import { storeVotingSource, getStoredVotingSource } from '@/lib/votingSource';
+import { storeVotingSource, getStoredVotingSource, clearVotingSource } from '@/lib/votingSource';
 
 interface CampaignData {
   campaign: {
@@ -53,22 +53,23 @@ function VotePageContent() {
   const [isLoaded, setIsLoaded] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [source, setSource] = useState<string>('direct');
+  const sourceRef = useRef<string>('direct');
 
   // Initialize source from URL or session storage
   useEffect(() => {
     const urlSource = searchParams.get('source');
+    // Only fall back to stored source if URL doesn't have one
     const newSource = urlSource || getStoredVotingSource();
     
-    // Only update if source actually changed
-    if (newSource !== source) {
+    // Only update if source actually changed (use ref to avoid dependency on source state)
+    if (newSource !== sourceRef.current) {
       // Reset isLoaded to prevent showing stale data during transition
       setIsLoaded(false);
+      sourceRef.current = newSource;
       setSource(newSource);
-      if (urlSource) {
-        storeVotingSource(urlSource);
-      }
+      // Don't store source here - wait until it's validated
     }
-  }, [searchParams, source]);
+  }, [searchParams]);
 
   // Check if user is admin
   useEffect(() => {
@@ -107,8 +108,9 @@ function VotePageContent() {
         const voteSource = sources.find((s: any) => s.code === source);
         
         if (!voteSource) {
-          // Source doesn't exist for this campaign - redirect to base vote page
+          // Source doesn't exist for this campaign - clear stored source and redirect
           console.log('Invalid source for this campaign, redirecting to vote page');
+          clearVotingSource(); // Clear to prevent redirect loop
           window.location.href = `/${campaignSlug}/vote`;
           return;
         }
@@ -130,6 +132,9 @@ function VotePageContent() {
             return;
           }
         }
+
+        // Source is valid - store it in session storage for persistence
+        storeVotingSource(source);
       } catch (err) {
         console.error('Error validating source:', err);
       }
@@ -281,7 +286,8 @@ function VotePageContent() {
           // Already voted
           setHasSubmitted(true);
         } else if (result.invalidSource) {
-          // Invalid source - redirect to base vote page
+          // Invalid source - clear stored source and redirect to base vote page
+          clearVotingSource();
           alert('This voting link is invalid. You will be redirected to the main voting page.');
           window.location.href = `/${campaignSlug}/vote`;
           return;
