@@ -66,7 +66,33 @@ async function main() {
   });
 
   // ============================================================================
-  // VOTE SOURCES - 10 per day for 3 days (30 total)
+  // DEMO CAMPAIGN - alliance2026demo1 (Mon-Wed next week)
+  // ============================================================================
+  console.log('🏆 Creating demo campaign: alliance2026demo1...');
+  
+  // Define dates first
+  const monday = new Date('2026-01-26T00:00:00');
+  const tuesday = new Date('2026-01-27T00:00:00');
+  const wednesday = new Date('2026-01-28T00:00:00');
+  const endMonday = new Date('2026-01-26T23:59:59');
+  const endTuesday = new Date('2026-01-27T23:59:59');
+  const endWednesday = new Date('2026-01-28T23:59:59');
+
+  const campaign = await prisma.campaign.create({
+    data: {
+      name: 'Feature Face Off - March Madness Edition',
+      description: 'Welcome to the ultimate feature showdown! Just like March Madness, your vote helps decide which GT eForms features advance. Fill out your bracket each day as the competition heats up!',
+      slug: 'alliance2026demo1',
+      isDemo: true,
+      isActive: true,
+      startDate: monday,
+      endDate: endWednesday,
+      currentRound: 1,
+    },
+  });
+
+  // ============================================================================
+  // VOTE SOURCES - 10 per day for 3 days (30 total) + direct
   // ============================================================================
   console.log('🔗 Creating vote sources...');
   
@@ -112,27 +138,20 @@ async function main() {
     { code: 'day3-farewell', name: 'Farewell Event', description: 'Wednesday Farewell Reception' },
   ];
 
-  // Create all vote sources with validity periods
-  const monday = new Date('2026-01-26T00:00:00');
-  const tuesday = new Date('2026-01-27T00:00:00');
-  const wednesday = new Date('2026-01-28T00:00:00');
-  const endMonday = new Date('2026-01-26T23:59:59');
-  const endTuesday = new Date('2026-01-27T23:59:59');
-  const endWednesday = new Date('2026-01-28T23:59:59');
-
+  // Create all vote sources with validity periods (linked to campaign)
   for (const source of day1Sources) {
     await prisma.voteSource.create({
-      data: { ...source, validFrom: monday, validUntil: endMonday, isActive: true },
+      data: { ...source, campaignId: campaign.id, validFrom: monday, validUntil: endMonday, isActive: true },
     });
   }
   for (const source of day2Sources) {
     await prisma.voteSource.create({
-      data: { ...source, validFrom: tuesday, validUntil: endTuesday, isActive: true },
+      data: { ...source, campaignId: campaign.id, validFrom: tuesday, validUntil: endTuesday, isActive: true },
     });
   }
   for (const source of day3Sources) {
     await prisma.voteSource.create({
-      data: { ...source, validFrom: wednesday, validUntil: endWednesday, isActive: true },
+      data: { ...source, campaignId: campaign.id, validFrom: wednesday, validUntil: endWednesday, isActive: true },
     });
   }
 
@@ -142,25 +161,8 @@ async function main() {
       code: 'direct',
       name: 'Direct Link',
       description: 'Direct access to voting page',
+      campaignId: campaign.id,
       isActive: true,
-    },
-  });
-
-  // ============================================================================
-  // DEMO CAMPAIGN - alliance2026demo1 (Mon-Wed next week)
-  // ============================================================================
-  console.log('🏆 Creating demo campaign: alliance2026demo1...');
-  
-  const campaign = await prisma.campaign.create({
-    data: {
-      name: 'Feature Face Off - March Madness Edition',
-      description: 'Welcome to the ultimate feature showdown! Just like March Madness, your vote helps decide which GT eForms features advance. Fill out your bracket each day as the competition heats up!',
-      slug: 'alliance2026demo1',
-      isDemo: true,
-      isActive: true,
-      startDate: monday,
-      endDate: endWednesday,
-      currentRound: 1,
     },
   });
 
