@@ -18,6 +18,11 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
+# Build-time environment variables (placeholders - real values set at runtime in OCI)
+ENV ENCRYPTION_KEY=placeholder_key_for_build_only
+ENV AUTH_SECRET=placeholder_secret_for_build_only
+ENV POSTGRES_PRISMA_URL=postgresql://placeholder:placeholder@localhost:5432/placeholder
+
 # Generate Prisma client and build
 RUN npx prisma generate
 RUN npm run build
