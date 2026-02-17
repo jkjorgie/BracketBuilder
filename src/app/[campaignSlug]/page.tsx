@@ -127,7 +127,7 @@ export default function CampaignHomePage() {
             {campaignName}
           </h1>
 
-          <p className="text-lg md:text-xl text-text/80 mb-8 max-w-2xl">
+          <p className="text-lg md:text-xl text-text mb-8 max-w-2xl drop-shadow-sm">
             {campaignDescription}
           </p>
 
@@ -301,7 +301,7 @@ export default function CampaignHomePage() {
                 style={{ animationDelay: `${index * 50}ms`, opacity: 0 }}
               >
                 <div className="flex items-start gap-3">
-                  <span className="inline-flex items-center justify-center w-8 h-8 text-sm font-bold bg-secondary text-white rounded-full flex-shrink-0">
+                  <span className="inline-flex items-center justify-center w-8 h-8 text-sm font-bold bg-secondary text-text rounded-full flex-shrink-0">
                     #{contestant!.seed}
                   </span>
                   <div>
@@ -348,7 +348,7 @@ export default function CampaignHomePage() {
                     round.isActive
                       ? 'bg-primary text-text'
                       : round.isComplete
-                      ? 'bg-success text-white'
+                      ? 'bg-success-bg text-text'
                       : 'bg-border text-text/50'
                   }`}
                 >
@@ -448,7 +448,7 @@ function StepCard({
 }) {
   return (
     <div className="bg-white border-2 border-border rounded-xl p-6 text-center hover:border-secondary transition-colors">
-      <div className="inline-flex items-center justify-center w-16 h-16 bg-secondary/10 text-secondary rounded-full mb-4">
+      <div className="inline-flex items-center justify-center w-16 h-16 bg-secondary/10 text-secondary-text rounded-full mb-4">
         {icon}
       </div>
       <div className="inline-flex items-center justify-center w-8 h-8 bg-primary text-text font-bold rounded-full text-sm mb-3">

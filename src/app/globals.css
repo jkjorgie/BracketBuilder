@@ -4,6 +4,7 @@
   /* Brand Colors */
   --color-primary: #FF9E18;
   --color-secondary: #00B2E3;
+  --color-secondary-text: #007A99; /* WCAG AA compliant for text (4.9:1) */
   --color-text: #231F20;
   
   /* Semantic Colors */
@@ -20,17 +21,20 @@
   --color-secondary-dark: #0099C7;
   
   /* Focus ring for accessibility */
-  --color-focus: #00B2E3;
+  --color-focus: #005F7A; /* Darkened for better visibility */
   
-  /* Status colors */
-  --color-success: #10B981;
-  --color-error: #EF4444;
-  --color-warning: #F59E0B;
+  /* Status colors - WCAG AA compliant versions for text */
+  --color-success: #0A7558; /* Darkened from #10B981 for 5:1 contrast */
+  --color-success-bg: #10B981; /* Original for backgrounds */
+  --color-error: #DC2626; /* Slightly darker for better contrast */
+  --color-warning: #B45309; /* Darkened from #F59E0B for 4.5:1 contrast */
+  --color-warning-bg: #F59E0B; /* Original for backgrounds */
 }
 
 @theme inline {
   --color-primary: var(--color-primary);
   --color-secondary: var(--color-secondary);
+  --color-secondary-text: var(--color-secondary-text);
   --color-text: var(--color-text);
   --color-background: var(--color-background);
   --color-surface: var(--color-surface);
@@ -41,8 +45,10 @@
   --color-secondary-dark: var(--color-secondary-dark);
   --color-focus: var(--color-focus);
   --color-success: var(--color-success);
+  --color-success-bg: var(--color-success-bg);
   --color-error: var(--color-error);
   --color-warning: var(--color-warning);
+  --color-warning-bg: var(--color-warning-bg);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
@@ -182,7 +188,7 @@ body {
 
 .btn-secondary {
   background: var(--color-secondary);
-  color: white;
+  color: var(--color-text); /* Changed from white for WCAG AA compliance */
 }
 
 .btn-secondary:hover:not(:disabled) {

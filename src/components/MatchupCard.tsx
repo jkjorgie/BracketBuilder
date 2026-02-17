@@ -219,7 +219,7 @@ function ContestantOption({
                 className={`inline-flex items-center justify-center w-6 h-6 text-xs font-bold rounded-full ${
                   isEliminated 
                     ? 'bg-text/20 text-text/40' 
-                    : 'bg-secondary text-white'
+                    : 'bg-secondary text-text'
                 }`}
                 aria-label={`Seed ${contestant.seed}`}
               >
@@ -227,7 +227,7 @@ function ContestantOption({
               </span>
             )}
             {isWinner && (
-              <span className="inline-flex items-center gap-1 text-xs font-semibold text-success bg-success/20 px-2 py-0.5 rounded-full">
+              <span className="inline-flex items-center gap-1 text-xs font-semibold text-success bg-success-bg/20 px-2 py-0.5 rounded-full">
                 <svg
                   className="w-3 h-3"
                   fill="currentColor"
@@ -332,7 +332,7 @@ function ReadMoreButton({
         type="button"
         onClick={onToggle}
         className={`ml-11 text-xs font-medium hover:underline focus:outline-none focus:ring-2 focus:ring-focus rounded ${
-          isEliminated ? 'text-text/40' : 'text-secondary'
+          isEliminated ? 'text-text/40' : 'text-secondary-text'
         }`}
         aria-expanded={isExpanded}
         aria-controls={`${inputId}-description`}

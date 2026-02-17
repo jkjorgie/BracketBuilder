@@ -439,7 +439,7 @@ function VotePageContent() {
             </svg>
             <span className="text-sm font-medium text-text">
               Voting via:{' '}
-              <span className="text-secondary font-bold">{source}</span>
+              <span className="text-secondary-text font-bold">{source}</span>
             </span>
           </div>
         </div>
@@ -475,7 +475,7 @@ function VotePageContent() {
       {/* Already submitted message */}
       {hasSubmitted && !showSuccess && (
         <div
-          className="bg-success/10 border border-success/30 rounded-lg p-4 mb-8"
+          className="bg-success-bg/10 border border-success-bg/30 rounded-lg p-4 mb-8"
           role="alert"
         >
           <div className="flex items-start gap-3">
