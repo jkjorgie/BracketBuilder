@@ -638,8 +638,8 @@ function CampaignsTab({
       slug: campaign.slug,
       description: campaign.description || '',
       isDemo: campaign.isDemo,
-      startDate: campaign.startDate ? campaign.startDate.slice(0, 16) : '',
-      endDate: campaign.endDate ? campaign.endDate.slice(0, 16) : '',
+      startDate: toLocalDatetimeString(campaign.startDate),
+      endDate: toLocalDatetimeString(campaign.endDate),
     });
     setShowCreateForm(true);
   };
@@ -677,8 +677,8 @@ function CampaignsTab({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...formData,
-          startDate: formData.startDate || null,
-          endDate: formData.endDate || null,
+          startDate: toUTCDateString(formData.startDate),
+          endDate: toUTCDateString(formData.endDate),
         }),
       });
 
@@ -934,8 +934,8 @@ function RoundsTab({
           rounds: [{
             roundNumber: nextRoundNumber,
             name: formData.name || `Round ${nextRoundNumber}`,
-            startDate: formData.startDate || null,
-            endDate: formData.endDate || null,
+            startDate: toUTCDateString(formData.startDate),
+            endDate: toUTCDateString(formData.endDate),
             isActive: false,
           }],
         }),
@@ -1101,8 +1101,8 @@ function RoundsTab({
                     <label className="block text-xs text-gray-500 mb-1">Start Date</label>
                     <input
                       type="datetime-local"
-                      value={round.startDate ? round.startDate.slice(0, 16) : ''}
-                      onChange={(e) => onUpdateRound(round.id, { startDate: e.target.value || null })}
+                      value={toLocalDatetimeString(round.startDate)}
+                      onChange={(e) => onUpdateRound(round.id, { startDate: toUTCDateString(e.target.value) })}
                       className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white text-sm"
                     />
                   </div>
@@ -1110,8 +1110,8 @@ function RoundsTab({
                     <label className="block text-xs text-gray-500 mb-1">End Date</label>
                     <input
                       type="datetime-local"
-                      value={round.endDate ? round.endDate.slice(0, 16) : ''}
-                      onChange={(e) => onUpdateRound(round.id, { endDate: e.target.value || null })}
+                      value={toLocalDatetimeString(round.endDate)}
+                      onChange={(e) => onUpdateRound(round.id, { endDate: toUTCDateString(e.target.value) })}
                       className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white text-sm"
                     />
                   </div>
@@ -1575,8 +1575,8 @@ function VoteSourcesTab({
       code: source.code,
       name: source.name,
       description: source.description || '',
-      validFrom: source.validFrom ? source.validFrom.slice(0, 16) : '',
-      validUntil: source.validUntil ? source.validUntil.slice(0, 16) : '',
+      validFrom: toLocalDatetimeString(source.validFrom),
+      validUntil: toLocalDatetimeString(source.validUntil),
     });
     setShowForm(true);
   };
@@ -1612,8 +1612,8 @@ function VoteSourcesTab({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...body,
-          validFrom: formData.validFrom || null,
-          validUntil: formData.validUntil || null,
+          validFrom: toUTCDateString(formData.validFrom),
+          validUntil: toUTCDateString(formData.validUntil),
         }),
       });
 
@@ -2331,6 +2331,27 @@ function formatDate(dateString: string): string {
     day: 'numeric',
     hour: 'numeric',
     minute: '2-digit',
-    timeZone: 'UTC', // Force UTC interpretation to match admin input
   });
+}
+
+// Convert datetime-local value to UTC ISO string for API
+function toUTCDateString(localDatetime: string): string | null {
+  if (!localDatetime) return null;
+  // datetime-local gives us YYYY-MM-DDTHH:MM in local time
+  // Convert to a proper Date using local timezone, then to ISO
+  const localDate = new Date(localDatetime);
+  return localDate.toISOString();
+}
+
+// Convert UTC ISO string to datetime-local format in local time
+function toLocalDatetimeString(isoString: string | null): string {
+  if (!isoString) return '';
+  const date = new Date(isoString);
+  // Format as YYYY-MM-DDTHH:MM in local timezone
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  const hours = String(date.getHours()).padStart(2, '0');
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+  return `${year}-${month}-${day}T${hours}:${minutes}`;
 }
