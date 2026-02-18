@@ -126,6 +126,31 @@ export function hasSubmittedForSource(
   return getSubmission(bracketId, roundNumber, source) !== null;
 }
 
+/**
+ * Check if a source has been used in ANY round of the campaign
+ * Sources should only be usable once per campaign, regardless of round
+ */
+export function hasSubmittedForSourceInCampaign(
+  bracketId: string,
+  source: string
+): StoredBracketSubmission | null {
+  try {
+    const prefix = `${STORAGE_KEYS.SUBMISSIONS_PREFIX}${bracketId}-`;
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith(prefix) && key.endsWith(`-${source}`)) {
+        const stored = localStorage.getItem(key);
+        if (stored) {
+          return JSON.parse(stored) as StoredBracketSubmission;
+        }
+      }
+    }
+  } catch (error) {
+    console.error('Failed to check submission history:', error);
+  }
+  return null;
+}
+
 // Get all submissions for a bracket (useful for showing history)
 export function getAllSubmissionsForBracket(
   bracketId: string,

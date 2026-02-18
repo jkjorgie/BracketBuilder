@@ -162,16 +162,17 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Check for existing votes from this source
-    const existingVotes = await prisma.vote.findMany({
+    // Check for existing votes from this source in ANY round of this campaign
+    // A source link should only be usable once per campaign, regardless of round
+    const existingVotes = await prisma.vote.findFirst({
       where: {
-        matchupId: { in: selectionEntries.map(([id]) => id) },
+        campaignId: campaign.id,
         voterEmail: encrypt(voterEmail),
         source,
       },
     });
 
-    if (existingVotes.length > 0) {
+    if (existingVotes) {
       return NextResponse.json(
         { error: "You have already voted from this source" },
         { status: 409 },

@@ -11,6 +11,7 @@ import {
   saveCurrentSelections,
   getSubmission,
   saveSubmission,
+  hasSubmittedForSourceInCampaign,
   StoredBracketSubmission,
 } from '@/lib/storage';
 import { storeVotingSource, getStoredVotingSource, clearVotingSource } from '@/lib/votingSource';
@@ -194,10 +195,10 @@ function VotePageContent() {
       // Load user profile
       const profile = getUserProfile();
       
-      // Check if already submitted for this source (local storage check)
-      const existingSubmission = getSubmission(
+      // Check if already submitted for this source in ANY round of this campaign
+      // Sources should only be usable once per campaign, regardless of round
+      const existingSubmission = hasSubmittedForSourceInCampaign(
         campaignData.campaign.slug,
-        campaignData.campaign.currentRound,
         source
       );
 
