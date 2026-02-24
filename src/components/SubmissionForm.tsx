@@ -115,7 +115,7 @@ export function SubmissionForm({
           <span className="text-sm font-medium text-text">
             Selection Progress
           </span>
-          <span className="text-sm text-text/60">
+          <span className="text-sm text-text/80">
             {selectedCount} of {totalMatchups} matchups
           </span>
         </div>
@@ -270,7 +270,7 @@ export function SubmissionForm({
                 {emailError}
               </p>
             ) : (
-              <p id="email-hint" className="mt-1 text-xs text-text/50">
+              <p id="email-hint" className="mt-1 text-xs text-text/80">
                 Your name and email will be encrypted for privacy
               </p>
             )}

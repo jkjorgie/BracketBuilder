@@ -127,7 +127,7 @@ export default function CampaignHomePage() {
             {campaignName}
           </h1>
 
-          <p className="text-lg md:text-xl text-text mb-8 max-w-2xl drop-shadow-sm">
+          <p className="text-lg md:text-xl text-text mb-8 max-w-2xl bg-white/40 backdrop-blur-sm rounded-lg px-4 py-3">
             {campaignDescription}
           </p>
 
@@ -202,7 +202,7 @@ export default function CampaignHomePage() {
         >
           How the Tournament Works
         </h2>
-        <p className="text-text/60 text-center mb-8 max-w-2xl mx-auto">
+        <p className="text-text/80 text-center mb-8 max-w-2xl mx-auto">
           Vote for your favorite features each round! The winning feature will be built by GT — your votes decide what gets developed!
         </p>
 
@@ -281,9 +281,9 @@ export default function CampaignHomePage() {
               >
                 The Tournament Field
               </h2>
-              <p className="text-text/60 mt-1">Which feature should GT build next? Vote for your favorites!</p>
+              <p className="text-text/80 mt-1">Which feature should GT build next? Vote for your favorites!</p>
             </div>
-            <span className="text-sm font-medium text-text/60 bg-surface px-3 py-1 rounded-full whitespace-nowrap">
+            <span className="text-sm font-medium text-text/80 bg-surface px-3 py-1 rounded-full whitespace-nowrap">
               {contestantCount} Competitors
             </span>
           </div>
@@ -329,7 +329,7 @@ export default function CampaignHomePage() {
           >
             Tournament Schedule
           </h2>
-          <p className="text-text/60 mb-6">One round per day — don&apos;t miss your window to vote!</p>
+          <p className="text-text/80 mb-6">One round per day — don&apos;t miss your window to vote!</p>
 
           <div className="space-y-4">
             {data.rounds.map((round) => (
@@ -349,7 +349,7 @@ export default function CampaignHomePage() {
                       ? 'bg-primary text-text'
                       : round.isComplete
                       ? 'bg-success-bg text-text'
-                      : 'bg-border text-text/50'
+                      : 'bg-border text-text/80'
                   }`}
                 >
                   {round.isComplete ? (
@@ -371,7 +371,7 @@ export default function CampaignHomePage() {
 
                 <div className="flex-1 min-w-0">
                   <h3 className="font-semibold text-text">{round.name}</h3>
-                  <p className="text-sm text-text/60">
+                  <p className="text-sm text-text/80">
                     {round.matchups.length} matchup
                     {round.matchups.length !== 1 ? 's' : ''}
                     {round.startDate && ` • ${formatDate(round.startDate)}`}
@@ -392,7 +392,7 @@ export default function CampaignHomePage() {
                   </span>
                 )}
                 {!round.isActive && !round.isComplete && (
-                  <span className="text-sm text-text/50 flex-shrink-0 whitespace-nowrap">Upcoming</span>
+                  <span className="text-sm text-text/80 flex-shrink-0 whitespace-nowrap">Upcoming</span>
                 )}
               </div>
             ))}

@@ -39,7 +39,7 @@ export function BracketRound({
           <RoundStatusBadge round={round} />
         </div>
         {round.startDate && (
-          <p className="text-sm text-text/60 mt-1">
+          <p className="text-sm text-text/80 mt-1">
             {formatDateRange(round.startDate, round.endDate)}
           </p>
         )}
@@ -106,7 +106,7 @@ function RoundStatusBadge({ round }: { round: Round }) {
 
   if (round.isActive) {
     return (
-      <span className="inline-flex items-center gap-1.5 px-3 py-1 text-sm font-medium bg-primary/20 text-primary-dark rounded-full animate-pulse">
+      <span className="inline-flex items-center gap-1.5 px-3 py-1 text-sm font-medium bg-primary/20 text-text rounded-full animate-pulse">
         <span className="w-2 h-2 bg-primary rounded-full" aria-hidden="true" />
         Voting Open
       </span>
@@ -114,7 +114,7 @@ function RoundStatusBadge({ round }: { round: Round }) {
   }
 
   return (
-    <span className="inline-flex items-center px-3 py-1 text-sm font-medium bg-surface text-text/60 rounded-full">
+    <span className="inline-flex items-center px-3 py-1 text-sm font-medium bg-surface text-text/80 rounded-full">
       Upcoming
     </span>
   );

@@ -80,7 +80,7 @@ export function MatchupCard({
 
       <div className="flex items-center justify-center py-2 bg-surface">
         <span
-          className="text-sm font-bold text-text/60 uppercase tracking-wider"
+          className="text-sm font-bold text-text/80 uppercase tracking-wider"
           aria-hidden="true"
         >
           VS

@@ -195,7 +195,7 @@ export default function ResultsPage() {
               <h3 className="text-lg font-semibold text-text mb-3 flex items-center gap-2">
                 {round.name}
                 {round.isActive && (
-                  <span className="text-xs bg-primary/20 text-primary-dark px-2 py-0.5 rounded-full">
+                  <span className="text-xs bg-primary/20 text-text px-2 py-0.5 rounded-full font-medium">
                     Active
                   </span>
                 )}
@@ -293,7 +293,7 @@ export default function ResultsPage() {
         <div className="mt-8 bg-white border-2 border-border rounded-xl p-6">
           <h2 className="text-xl font-bold text-text mb-4 flex items-center gap-2">
             Votes by Source
-            <span className="text-xs bg-primary/20 text-primary-dark px-2 py-0.5 rounded-full">
+            <span className="text-xs bg-primary/20 text-text px-2 py-0.5 rounded-full font-medium">
               Admin Only
             </span>
           </h2>
@@ -303,7 +303,7 @@ export default function ResultsPage() {
                 key={item.source}
                 className="bg-surface rounded-lg p-3 border border-border"
               >
-                <p className="text-sm text-text/60">{item.source}</p>
+                <p className="text-sm text-text/80">{item.source}</p>
                 <p className="text-lg font-bold text-text">{item.count}</p>
               </div>
             ))}
@@ -330,7 +330,7 @@ function BracketVisualization({ data }: { data: ResultsData }) {
           }}
         >
           <div className="text-center mb-4">
-            <span className="text-sm font-semibold text-text/60 uppercase tracking-wider">
+            <span className="text-sm font-semibold text-text/80 uppercase tracking-wider">
               {round.name}
             </span>
           </div>
@@ -365,7 +365,7 @@ function BracketVisualization({ data }: { data: ResultsData }) {
 
       {/* Champion slot */}
       <div className="flex flex-col items-center">
-        <span className="text-sm font-semibold text-text/60 uppercase tracking-wider mb-4">
+        <span className="text-sm font-semibold text-text/80 uppercase tracking-wider mb-4">
           Champion
         </span>
         <div
@@ -388,7 +388,7 @@ function BracketVisualization({ data }: { data: ResultsData }) {
               </span>
             </>
           ) : (
-            <span className="text-text/50">TBD</span>
+            <span className="text-text/80 font-medium">TBD</span>
           )}
         </div>
       </div>
@@ -434,7 +434,7 @@ function ContestantSlot({
             {contestant.name}
           </span>
           {showVotes && (
-            <span className="text-xs text-text/60 font-medium flex-shrink-0">
+            <span className="text-xs text-text/80 font-medium flex-shrink-0">
               {votes}
             </span>
           )}
@@ -454,7 +454,7 @@ function ContestantSlot({
           )}
         </div>
       ) : (
-        <span className="text-sm text-text/50">TBD</span>
+        <span className="text-sm text-text/80 font-medium">TBD</span>
       )}
     </div>
   );
@@ -483,19 +483,19 @@ function MobileMatchup({
           isWinner={winner?.id === contestant1?.id}
         />
         {showVotes && (
-          <span className="text-sm font-medium text-text/60 flex-shrink-0">
+          <span className="text-sm font-medium text-text/80 flex-shrink-0">
             {competitor1Votes}
           </span>
         )}
       </div>
-      <div className="text-center text-xs font-bold text-text/40">VS</div>
+      <div className="text-center text-xs font-bold text-text/80">VS</div>
       <div className="flex items-center justify-between gap-3">
         <MobileContestant
           contestant={contestant2}
           isWinner={winner?.id === contestant2?.id}
         />
         {showVotes && (
-          <span className="text-sm font-medium text-text/60 flex-shrink-0">
+          <span className="text-sm font-medium text-text/80 flex-shrink-0">
             {competitor2Votes}
           </span>
         )}
@@ -512,7 +512,7 @@ function MobileContestant({
   isWinner: boolean;
 }) {
   if (!contestant) {
-    return <span className="text-sm text-text/50">TBD</span>;
+    return <span className="text-sm text-text/80 font-medium">TBD</span>;
   }
 
   return (
@@ -563,7 +563,7 @@ function StatCard({
         {icon}
       </div>
       <div>
-        <p className="text-sm text-text/60">{label}</p>
+        <p className="text-sm text-text/80">{label}</p>
         <p className="text-xl font-bold text-text">{value}</p>
       </div>
     </div>
