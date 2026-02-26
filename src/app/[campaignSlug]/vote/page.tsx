@@ -247,7 +247,12 @@ function VotePageContent() {
 
   const handleYesResubmit = () => {
     setPreloadedFromStorage(false);
-    formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    if (userName && userEmail && isComplete) {
+      handleSubmit(userEmail, userName);
+    } else {
+      // Fall back to scrolling if profile or selections are incomplete
+      formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
   };
 
   const handleChangeVotes = () => {
