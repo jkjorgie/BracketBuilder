@@ -54,7 +54,9 @@ function VotePageContent() {
   const [isLoaded, setIsLoaded] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [source, setSource] = useState<string>('direct');
+  const [preloadedFromStorage, setPreloadedFromStorage] = useState(false);
   const sourceRef = useRef<string>('direct');
+  const formRef = useRef<HTMLDivElement>(null);
 
   // Initialize source from URL or session storage
   useEffect(() => {
@@ -224,8 +226,10 @@ function VotePageContent() {
           );
           if (savedSelections) {
             setSelections(savedSelections);
+            setPreloadedFromStorage(true);
           } else {
             setSelections({});
+            setPreloadedFromStorage(false);
           }
         }
         setIsLoaded(true);
@@ -241,8 +245,19 @@ function VotePageContent() {
     };
   }, [campaignData, source]);
 
+  const handleYesResubmit = () => {
+    setPreloadedFromStorage(false);
+    formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
+  const handleChangeVotes = () => {
+    setPreloadedFromStorage(false);
+    setSelections({});
+  };
+
   const handleSelectWinner = (matchupId: string, contestantId: string) => {
     if (hasSubmitted || !campaignData) return;
+    setPreloadedFromStorage(false);
 
     const newSelections = {
       ...selections,
@@ -504,15 +519,15 @@ function VotePageContent() {
         </div>
       )}
 
-      {/* Pre-filled selections notice */}
-      {!hasSubmitted && Object.keys(selections).length > 0 && (
+      {/* Resubmit notice - shown only when selections are pre-loaded from a previous session */}
+      {preloadedFromStorage && (
         <div
-          className="bg-primary/10 border border-primary/30 rounded-lg p-4 mb-8"
+          className="bg-surface border border-border rounded-lg p-4 mb-8"
           role="status"
         >
           <div className="flex items-start gap-3">
             <svg
-              className="w-5 h-5 text-primary flex-shrink-0 mt-0.5"
+              className="w-5 h-5 text-text/50 flex-shrink-0 mt-0.5"
               fill="currentColor"
               viewBox="0 0 20 20"
               aria-hidden="true"
@@ -523,13 +538,27 @@ function VotePageContent() {
                 clipRule="evenodd"
               />
             </svg>
-            <div>
+            <div className="flex-1">
               <p className="font-medium text-text">
-                Your previous selections have been loaded
+                Thanks for voting again for {activeRound.name}!
               </p>
               <p className="text-sm text-text/70 mt-1">
-                Review your picks and submit to record your vote for this link.
+                Your previous selections are ready to go. Would you like to resubmit your picks for today&apos;s vote?
               </p>
+              <div className="flex flex-wrap gap-3 mt-3">
+                <button
+                  onClick={handleYesResubmit}
+                  className="btn btn-primary text-sm px-4 py-1.5"
+                >
+                  Yes, submit my picks!
+                </button>
+                <button
+                  onClick={handleChangeVotes}
+                  className="btn bg-white border border-border text-text text-sm px-4 py-1.5 hover:bg-surface"
+                >
+                  No, I want to change my votes
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -556,7 +585,7 @@ function VotePageContent() {
         </div>
 
         <div className="lg:col-span-1">
-          <div className="sticky top-24">
+          <div ref={formRef} className="sticky top-24">
             <SubmissionForm
               isComplete={isComplete}
               totalMatchups={totalMatchups}

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { decrypt } from '@/lib/encryption';
+import { logAudit } from '@/lib/audit';
 
 // Middleware to check admin session
 async function checkAdminSession(request: NextRequest) {
@@ -121,6 +122,56 @@ export async function GET(request: NextRequest) {
     console.error('Error fetching submissions:', error);
     return NextResponse.json(
       { error: 'Failed to fetch submissions' },
+      { status: 500 }
+    );
+  }
+}
+
+// DELETE /api/admin/submissions?id=<voteId> - Delete a single vote and adjust matchup counts
+export async function DELETE(request: NextRequest) {
+  try {
+    const user = await checkAdminSession(request);
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const { searchParams } = new URL(request.url);
+    const voteId = searchParams.get('id');
+    if (!voteId) {
+      return NextResponse.json({ error: 'Vote ID required' }, { status: 400 });
+    }
+
+    // Find vote with its matchup to know which count to decrement
+    const vote = await prisma.vote.findUnique({
+      where: { id: voteId },
+      include: { matchup: true },
+    });
+
+    if (!vote) {
+      return NextResponse.json({ error: 'Vote not found' }, { status: 404 });
+    }
+
+    const isCompetitor1 = vote.competitorId === vote.matchup.competitor1Id;
+
+    await prisma.$transaction([
+      prisma.vote.delete({ where: { id: voteId } }),
+      prisma.matchup.update({
+        where: { id: vote.matchupId },
+        data: {
+          ...(isCompetitor1
+            ? { competitor1Votes: { decrement: 1 } }
+            : { competitor2Votes: { decrement: 1 } }),
+        },
+      }),
+    ]);
+
+    await logAudit('VOTE_DELETED', 'Vote', voteId, { deletedBy: user.email, source: vote.source }, request);
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error('Error deleting vote:', error);
+    return NextResponse.json(
+      { error: 'Failed to delete vote' },
       { status: 500 }
     );
   }

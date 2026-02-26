@@ -558,6 +558,7 @@ export default function AdminPage() {
               <SubmissionsTab
                 submissions={submissions}
                 onRefresh={fetchSubmissions}
+                showMessage={showMessage}
               />
             )}
 
@@ -2047,13 +2048,35 @@ function CompetitorsTab({
 function SubmissionsTab({
   submissions,
   onRefresh,
+  showMessage,
 }: {
   submissions: any;
   onRefresh: () => void;
+  showMessage: (type: 'success' | 'error', text: string) => void;
 }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterSource, setFilterSource] = useState('all');
   const [filterCampaign, setFilterCampaign] = useState('all');
+  const [deletingVoteId, setDeletingVoteId] = useState<string | null>(null);
+
+  const handleDeleteVote = async (voteId: string, voterName: string) => {
+    if (!confirm(`Delete vote from "${voterName}"? This will also decrement the matchup vote count.`)) return;
+    setDeletingVoteId(voteId);
+    try {
+      const res = await fetch(`/api/admin/submissions?id=${voteId}`, { method: 'DELETE' });
+      if (res.ok) {
+        showMessage('success', 'Vote deleted');
+        onRefresh();
+      } else {
+        const data = await res.json();
+        showMessage('error', data.error || 'Failed to delete vote');
+      }
+    } catch {
+      showMessage('error', 'Failed to delete vote');
+    } finally {
+      setDeletingVoteId(null);
+    }
+  };
 
   if (!submissions) {
     return (
@@ -2178,12 +2201,13 @@ function SubmissionsTab({
                 <th className="px-4 py-3 text-gray-400 font-medium text-sm">Matchup</th>
                 <th className="px-4 py-3 text-gray-400 font-medium text-sm">Selected</th>
                 <th className="px-4 py-3 text-gray-400 font-medium text-sm">Date</th>
+                <th className="px-4 py-3 text-gray-400 font-medium text-sm">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-700">
               {filteredVotes.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="px-4 py-8 text-center text-gray-400">
+                  <td colSpan={9} className="px-4 py-8 text-center text-gray-400">
                     No votes found matching your filters
                   </td>
                 </tr>
@@ -2214,6 +2238,15 @@ function SubmissionsTab({
                         hour: 'numeric',
                         minute: '2-digit',
                       })}
+                    </td>
+                    <td className="px-4 py-3">
+                      <button
+                        onClick={() => handleDeleteVote(vote.id, vote.voterName)}
+                        disabled={deletingVoteId === vote.id}
+                        className="px-3 py-1 bg-red-500/20 text-red-400 hover:bg-red-500/30 rounded text-xs disabled:opacity-50"
+                      >
+                        {deletingVoteId === vote.id ? '...' : 'Delete'}
+                      </button>
                     </td>
                   </tr>
                 ))

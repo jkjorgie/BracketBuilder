@@ -166,16 +166,18 @@ export default function ResultsPage() {
               🏆
             </span>
           </div>
-          <h2 className="text-2xl font-bold text-white mb-2">Winning Feature — Coming Soon!</h2>
-          <p className="text-3xl font-bold text-white">
-            {data.champion.name}
-          </p>
-          <p className="text-white/80 mt-2 max-w-md mx-auto">
-            {data.champion.description}
-          </p>
-          <p className="text-white/90 mt-3 font-medium">
-            GT will be building this feature next!
-          </p>
+          <div className="bg-white/80 backdrop-blur-sm rounded-xl px-6 py-4 max-w-lg mx-auto">
+            <h2 className="text-2xl font-bold text-text mb-2">Winning Feature — Coming Soon!</h2>
+            <p className="text-3xl font-bold text-text">
+              {data.champion.name}
+            </p>
+            <p className="text-text mt-2">
+              {data.champion.description}
+            </p>
+            <p className="text-text font-medium mt-3">
+              GT will be building this feature next!
+            </p>
+          </div>
         </div>
       )}
 
